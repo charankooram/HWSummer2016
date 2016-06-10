@@ -20,7 +20,7 @@ Use tar.bz2 to compress resulting JSON:
 
 __version__ = '0.0.3'
 
-import codecs, html, json, logging, os, re, sys, urllib.parse
+import codecs, html, json, logging, os, re, sys, time, urllib.parse
 from lxml import html
 
 
@@ -88,6 +88,9 @@ def mirror_dirs(src_dir, dest_dir):
 def text_to_json(text_file, path_prefix=''):
     """Parse text and return a dictionary that can be converted to a JSON file."""
 
+    # Get file modification date
+    datetime = get_datetime(text_file)
+
     # Read text files as cp1252, ignoring errors
     with codecs.open(text_file, mode='r', encoding='cp1252', errors='ignore') as fp:
         content = fp.read()
@@ -103,7 +106,7 @@ def text_to_json(text_file, path_prefix=''):
     # After compressing whitespace, take all the content of the file for indexing
     text = normalize_whitespace(content)
 
-    dictionary = {'url': url, 'title': title, 'text': text}
+    dictionary = {'url': url, 'title': title, 'text': text, 'date': datetime}
 
     # Update dictionary with metadata from the file path
     path_dictionary = parse_path(text_file)
@@ -172,128 +175,62 @@ def parse_path(path):
     return path_metadata
 
 
-def html_to_json(html_file, path_prefix=''):
-    """Parse HTML and return a dictionary that can be converted to a JSON file."""
+def get_datetime(path):
+    """Return UTC file modification date in datetime format."""
+    since_epoch = os.path.getmtime(path)
+    utc_time = time.gmtime(since_epoch)
+    datetime = time.strftime('%Y-%m-%dT%H:%M:%S', utc_time)
+    return datetime
 
-    # TODO Make better html_to_json, using a real parser (such as lxml).
-    # if //div[@id='content'], then only get that element
-    # Especially, exclude //div[@class='legal'] and //div[@id='leftnavigation']
-
-    # Read HTML well enough to get the charset value (e.g., the character encoding)
-    with codecs.open(html_file, mode='r', encoding='cp1252', errors='ignore') as fp:
-        content = fp.read()
-    m = re.search(r"""
-        <meta [^>]+ charset \s* = \s* ['"]? ([-\w]+)
-        """, content, flags=re.X|re.M|re.S|re.I)
-    if m and m.group(1):
-        enc = m.group(1)
-
-        # Aliases of cp1252 and ISO-8859-1 that HTML5 spec says to read as cp1252
-        # https://encoding.spec.whatwg.org/#names-and-labels
-        latin1 = re.compile(r"""
-            (?: iso[-_]?8859[-_]?1 | 8859 | cp819 | latin | latin1 | L1 | ascii |
-            us[-_]?ascii | windows[-_]?1251 | x[-_]?cp1251 | ansi[-_]?x3[.]4[-_]?1968 |
-            cp819 | csisolatin1 | ibm819 | iso-ir-100 ) $
-            """, flags=re.X|re.I)
-        if latin1.match(enc):
-            enc = 'cp1252'
-
-        logging.debug('%s: %s', enc, html_file)
-        try:
-
-            # Open file with its identified encoding
-            with codecs.open(html_file, mode='r', encoding=enc, errors='strict') as fp:
-                content = fp.read()
-
-        except UnicodeDecodeError:
-            logging.exception('Rereading ignoring errors.')
-            try:
-
-                # Try again with identified encoding, ignoring errors
-                with codecs.open(html_file, mode='r', encoding=enc,
-                    errors='ignore') as fp:
-                    content = fp.read()
-
-            except UnicodeDecodeError:
-                logging.exception('Finally reading as cp1252, ignoring errors.')
-
-                # Try again, but as cp1252, ignoring errors
-                with codecs.open(html_file, mode='r', encoding='cp1252',
-                    errors='ignore') as fp:
-                    content = fp.read()
-
-    # Start dictionary with metadata from the file path
-    dictionary = parse_path(html_file)
-
-    # Convert file system path to URL syntax
-    trimed_path = trim_prefix(html_file, path_prefix)
-    url_escaped_path = urllib.parse.quote(trimed_path)
-    dictionary['url'] = url_escaped_path
-
-    # Use regular expressions and other tricks to get the page title
-    m = re.search(r"""
-        <title> (.+?) </title>
-        """, content, flags=re.X|re.M|re.S|re.I)
-    if m and m.group(1):
-        title = m.group(1)
-    else:
-        title = 'no title'
-    title = re.sub(r"""
-        < .*? >
-        """, '', title, flags=re.X|re.M|re.S) # Remove tags, if any
-    title = trim_prefix(title, 'Chapter')
-    title = title.lstrip(' 0123456789.') # Remove section number, if present
-    title = normalize_whitespace(title)
-    dictionary['title'] = title
-
-    # Remove as much content we do NOT want to index from the file as possible
-    content = re.sub(r"""
-        <\? .*? \?>
-        """, ' ', content, flags=re.X|re.M|re.S) # processing instructions
-    content = re.sub(r"""
-        <!-- .*? -->
-        """, ' ', content, flags=re.X|re.M|re.S) # comments
-    content = re.sub(r"""
-        < (?: script | style ) .*? </ (?: script | style ) >
-        """, ' ', content, flags=re.X|re.M|re.S|re.I) # script and style elements
-    content = re.sub(r"""
-        < .*? >
-        """, ' ', content, flags=re.X|re.M|re.S) # tags
-
-    # Convert entities such as &copy; to actual characters, e.g., ©
-    content = html.unescape(content)
-
-    # After compressing whitespace, take content for indexing
-    content = normalize_whitespace(content)
-    dictionary['text'] = content
-
-    return dictionary
 
 def htmlTojsonConverter(filepath):
-    tree = html.parse(filepath)
-    root = tree.getroot()
+    """Parse HTML and return a dictionary that can be converted to a JSON file."""
     isBody = False
     str = ''
     dumpedDict = dict()
+
+    tree = html.parse(filepath)
+    root = tree.getroot()
+
     if root == None:
         return dict()
+
     for element in root.iter():
         if isBody == False :
+
+            # Process meta elements
             if element.tag == 'meta' :
                 attribList = element.attrib
                 if 'name' in attribList and 'content' in attribList:
                     dumpedDict[attribList.get('name')] = attribList.get('content')
+
+            # Process title element
             elif element.tag == 'title':
                 dumpedDict['title'] = element.text
             elif element.tag == 'body':
                 isBody = True
+
+        # Process elements in body element
         elif isBody == True :
             if(element.text):
                 str = str + ' ' + element.text
-    dumpedDict['text'] = str
-    #with open('/Users/vkooram/sampledata2.json','w') as outfile :
-        #json.dump(dumpedDict,outfile)
+                dumpedDict['text'] = str
+
+    # Convert file system path to URL syntax
+    trimed_path = trim_prefix(filepath, path_prefix)
+    url_escaped_path = urllib.parse.quote(trimed_path)   
+    dumpedDict['url'] = url_escaped_path
+
+    # Get file modification date
+    datetime = get_datetime(filepath)
+    dumpedDict['date'] = datetime
+
+    # Update dictionary with metadata from the file path
+    path_metadata = parse_path(filepath)
+    dumpedDict.update(path_metadata)
+
     return dumpedDict
+
 
 # Command-line interface
 # TODO Use https://docs.python.org/3/library/getopt.html
