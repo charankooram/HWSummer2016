@@ -23,7 +23,6 @@ __version__ = '0.0.3'
 import codecs, html, json, logging, os, re, sys, time, urllib.parse
 from lxml import html
 
-
 # Set up logging
 # To monitor progress, tail the log file or use less in F mode
 logfile, _ = os.path.splitext(os.path.basename(__file__))
@@ -77,8 +76,8 @@ def mirror_dirs(src_dir, dest_dir):
             if extension == '.txt':
                 pydict = text_to_json(src_path, path_prefix)
             else:
-                # pydict = html_to_json(src_path)
-                pydict = htmlTojsonConverter(src_path)
+                # pydict = html_to_json(src_path, path_prefix)
+                pydict = htmlTojsonConverter(src_path, path_prefix)
 
             # Write JSON as UTF-8
             with codecs.open(dest_path, mode='w', encoding='UTF-8') as fp:
@@ -189,6 +188,16 @@ def htmlTojsonConverter(filepath):
     str = ''
     dumpedDict = dict()
 
+    # Combination of
+    # https://www.w3.org/TR/CSS21/sample.html#q22.0 and
+    # https://developer.mozilla.org/en-US/docs/Web/HTML/Block-level_elements
+    html_blocks = ['address', 'article', 'aside', 'blockquote', 'body',
+        'canvas', 'center', 'dd', 'dir', 'div', 'dl', 'dt', 'fieldset',
+        'figcaption', 'figure', 'footer', 'form', 'frame', 'frameset', 'h1',
+        'h2', 'h3', 'h4', 'h5', 'h6', 'header', 'hgroup', 'hr', 'html',
+        'li', 'main', 'menu', 'nav', 'noframes', 'noscript', 'ol', 'output',
+        'p', 'pre', 'section', 'table', 'tfoot', 'ul', 'video']
+
     tree = html.parse(filepath)
     root = tree.getroot()
 
@@ -196,24 +205,35 @@ def htmlTojsonConverter(filepath):
         return dict()
 
     for element in root.iter():
-        if isBody == False :
+        if isBody == False:
 
             # Process meta elements
-            if element.tag == 'meta' :
+            if element.tag == 'meta':
                 attribList = element.attrib
                 if 'name' in attribList and 'content' in attribList:
                     dumpedDict[attribList.get('name')] = attribList.get('content')
 
             # Process title element
             elif element.tag == 'title':
-                dumpedDict['title'] = element.text
+                title = element.text
+                title = normalize_whitespace(title)
+                title = trim_prefix(title, 'Chapter')
+                title = title.lstrip(' 0123456789.') # Remove section number, if present
+                dumpedDict['title'] = title
             elif element.tag == 'body':
                 isBody = True
 
         # Process elements in body element
-        elif isBody == True :
-            if(element.text):
-                str = str + ' ' + element.text
+        elif isBody == True:
+            if element.tag in html_blocks:
+                element_separator = ' '
+            else:
+                element_separator = ''
+            str = str + element_separator
+
+            if element.text:
+                str = str + element.text
+                str = normalize_whitespace(str)
                 dumpedDict['text'] = str
 
     # Convert file system path to URL syntax
