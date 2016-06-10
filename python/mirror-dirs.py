@@ -18,7 +18,7 @@ Use tar.bz2 to compress resulting JSON:
     -rw-r--r--   1 rcrews  staff   215M Jun  6 11:24 docs.hortonworks.com-json.zip
 """
 
-__version__ = '0.0.3'
+__version__ = '0.0.4'
 
 import codecs, html, json, logging, os, re, sys, time, urllib.parse
 from lxml import html
@@ -76,8 +76,7 @@ def mirror_dirs(src_dir, dest_dir):
             if extension == '.txt':
                 pydict = text_to_json(src_path, path_prefix)
             else:
-                # pydict = html_to_json(src_path, path_prefix)
-                pydict = htmlTojsonConverter(src_path, path_prefix)
+                pydict = html_to_json(src_path, path_prefix)
 
             # Write JSON as UTF-8
             with codecs.open(dest_path, mode='w', encoding='UTF-8') as fp:
@@ -182,11 +181,22 @@ def get_datetime(path):
     return datetime
 
 
-def htmlTojsonConverter(filepath):
+def html_to_json(filepath, path_prefix):
     """Parse HTML and return a dictionary that can be converted to a JSON file."""
-    isBody = False
+    
+    # Python style notes:
+    # Never use tabs. Always use 4 space indents
+    # Never put a space before a colon or a comma
+    # Use python_style variable names. Don't use javaStyle variable names.
+    #  See http://pep8.org/#prescriptive-naming-conventions
+    # Make sure there are no spaces or tabs after a line.
+    # Two returns before each def
+    # Separate related commands by single returns
+    # See http://pep8.org/  
+
+    is_body = False
     str = ''
-    dumpedDict = dict()
+    dumped_dict = dict()
 
     # Combination of
     # https://www.w3.org/TR/CSS21/sample.html#q22.0 and
@@ -205,51 +215,72 @@ def htmlTojsonConverter(filepath):
         return dict()
 
     for element in root.iter():
-        if isBody == False:
+        if is_body == False:
 
             # Process meta elements
             if element.tag == 'meta':
-                attribList = element.attrib
-                if 'name' in attribList and 'content' in attribList:
-                    dumpedDict[attribList.get('name')] = attribList.get('content')
+                attrib_list = element.attrib
+                if 'name' in attrib_list and 'content' in attrib_list:
+                    dumped_dict[attrib_list.get('name')] = attrib_list.get('content')
 
             # Process title element
+            # TODO: Need to account for bad HTML that has elements inside title
             elif element.tag == 'title':
                 title = element.text
                 title = normalize_whitespace(title)
                 title = trim_prefix(title, 'Chapter')
                 title = title.lstrip(' 0123456789.') # Remove section number, if present
-                dumpedDict['title'] = title
+                dumped_dict['title'] = title
+
             elif element.tag == 'body':
-                isBody = True
+                is_body = True
 
         # Process elements in body element
-        elif isBody == True:
+        elif is_body == True:
             if element.tag in html_blocks:
                 element_separator = ' '
             else:
                 element_separator = ''
             str = str + element_separator
 
+            # TODO Problem: The code as written only gets the first text node in an
+            # element. Needs to be updated to get all text nodes. For example:
+            # <p>For <span class="bold"><strong>Oracle</strong></span>:</p>
+            # should return   For Oracle:
+            # but currently returns    ForOracle
+            # The colon -- the second text node in the p element -- is missing.
+            # Also, need to check to see why the space after For is missing.
+            # docs.hortonworks.com/HDPDocuments/Ambari-1.5.0.0/bk_ambari_reference/content/ambari-chaplast-1.html
+            # docs.hortonworks.com-json/HDPDocuments/Ambari-1.5.0.0/bk_ambari_reference/content/ambari-chaplast-1_html.json
+
+            # TODO: Need to account for text directly in body, text not an element in body
+    
+            # TODO If /html/body/div[@id='content'], then only get that element
+            # Especially, exclude //div[@class='legal'] and //div[@id='leftnavigation']
+    
+            # TODO Exclude comments. Not sure why <!--jQuery plugin for glossary popups. -->
+            # is appearing in the JSON. I think the parser should automatically remove
+            # comments.
+
             if element.text:
                 str = str + element.text
                 str = normalize_whitespace(str)
-                dumpedDict['text'] = str
+                dumped_dict['text'] = str
 
     # Convert file system path to URL syntax
     trimed_path = trim_prefix(filepath, path_prefix)
     url_escaped_path = urllib.parse.quote(trimed_path)   
-    dumpedDict['url'] = url_escaped_path
+    dumped_dict['url'] = url_escaped_path
 
     # Get file modification date
     datetime = get_datetime(filepath)
-    dumpedDict['date'] = datetime
+    dumped_dict['date'] = datetime
 
     # Update dictionary with metadata from the file path
     path_metadata = parse_path(filepath)
-    dumpedDict.update(path_metadata)
+    dumped_dict.update(path_metadata)
 
-    return dumpedDict
+    return dumped_dict
 
 
 # Command-line interface
