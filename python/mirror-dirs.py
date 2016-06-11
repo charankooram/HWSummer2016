@@ -1,35 +1,56 @@
 #!/usr/bin/env python3
 """Create JSON from a directory of HTML and text for later insertion into Solr
 
-Takes about an hour to run on docs.hortonworks.com content
+Takes about 75 minutes to run on docs.hortonworks.com content
 
-usage:
-    python3 mirror-dirs.py <src_dir> <dest_dir>
+For usage, run:
+    python3 mirror-dirs.py --help
 
 Questions: Robert Crews <rcrews@hortonworks.com>
 
-Use tar.bz2 to compress resulting JSON:
-    $ du -sh docs.hortonworks.com-json
-    908M    docs.hortonworks.com-json
-    $ tar cfy docs.hortonworks.com-json.tar.bz2 docs.hortonworks.com-json && \
-      zip -qDXr docs.hortonworks.com-json.zip docs.hortonworks.com-json
-    $ ls -lh *-json.*
-    -rw-r--r--   1 rcrews  staff    49M Jun  6 11:20 docs.hortonworks.com-json.tar.bz2
-    -rw-r--r--   1 rcrews  staff   215M Jun  6 11:24 docs.hortonworks.com-json.zip
+Use tar.bz2 to compress the resulting JSON:
+    $ du -sh docs.hortonworks.com-json && \
+      tar cfy docs.hortonworks.com-json.tar.bz2 docs.hortonworks.com-json && \
+      zip -qDXr docs.hortonworks.com-json.zip docs.hortonworks.com-json && \
+      ls -lh *-json.*
+    853M	docs.hortonworks.com-json
+    -rw-r--r--  1 rcrews  staff    50M Jun 11 11:13 docs.hortonworks.com-json.tar.bz2
+    -rw-r--r--  1 rcrews  staff   192M Jun 11 11:13 docs.hortonworks.com-json.zip
 """
 
-__version__ = '0.0.4'
+__version__ = '0.0.5'
 
-import codecs, html, json, logging, os, re, sys, time, urllib.parse
-from lxml import html
+import argparse, codecs, html, json, logging, lxml.html, os, re, time, urllib.parse
+
+# Get command-line arguments
+argparser = argparse.ArgumentParser()
+logfile, _ = os.path.splitext(os.path.basename(__file__))
+logfile += '.log'
+argparser.add_argument('-l', '--logfile', default=logfile,
+    help='the log file, defaults to ./' + logfile)
+argparser.add_argument('-v', '--verbosity', type=int, default=2,
+    help='message level for log', choices=[1, 2, 3, 4, 5])
+argparser.add_argument('in_dir',
+    help='directory containing text and HTML files')
+argparser.add_argument('out_dir',
+    help='nonexisting directory where JSON files will be written')
+args = argparser.parse_args()
+
+# In JSON, include the URL only from the web root. We can add the
+# authority (e.g., the domain, i.e., docs.hortonworks.com) in
+# JavaScript when reading the JSON
+if args.in_dir.endswith('/'):
+    args.in_dir = args.in_dir[:-1] # Remove last character
+
+# https://docs.python.org/3/library/logging.html#levels
+args.verbosity *= 10 # debug, info, warning, error, critical
 
 # Set up logging
-# To monitor progress, tail the log file or use less in F mode
-logfile, _ = os.path.splitext(os.path.basename(__file__))
+# To monitor progress, tail the log file or use /usr/bin/less in F mode
 logging.basicConfig(
     format='%(asctime)s %(levelname)8s %(message)s', filemode='w',
-    filename=logfile + '.log')
-logging.getLogger().setLevel(logging.INFO)
+    filename=args.logfile)
+logging.getLogger().setLevel(args.verbosity)
 
 
 def mirror_dirs(src_dir, dest_dir):
@@ -61,22 +82,11 @@ def mirror_dirs(src_dir, dest_dir):
             else:
                 continue
 
-            # In JSON, include the URL only from the web root. We can add the
-            # authority (e.g., the domain, i.e., docs.hortonworks.com) in
-            # JavaScript when reading the JSON
-            if sys.argv[1]:
-                if sys.argv[1].endswith('/'):
-                    path_prefix = sys.argv[1][:-1] # Remove last character
-                else:
-                    path_prefix = sys.argv[1]
-            else:
-                path_prefix = ''
-
             # Use different parsers for files with different extensions
             if extension == '.txt':
-                pydict = text_to_json(src_path, path_prefix)
+                pydict = text_to_json(src_path, args.in_dir)
             else:
-                pydict = html_to_json(src_path, path_prefix)
+                pydict = html_to_json(src_path, args.in_dir)
 
             # Write JSON as UTF-8
             with codecs.open(dest_path, mode='w', encoding='UTF-8') as fp:
@@ -181,24 +191,18 @@ def get_datetime(path):
     return datetime
 
 
-def html_to_json(filepath, path_prefix):
-    """Parse HTML and return a dictionary that can be converted to a JSON file."""
-    
-    # Python style notes:
-    # Never use tabs. Always use 4 space indents
-    # Never put a space before a colon or a comma
-    # Use python_style variable names. Don't use javaStyle variable names.
-    #  See http://pep8.org/#prescriptive-naming-conventions
-    # Make sure there are no spaces or tabs after a line.
-    # Two returns before each def
-    # Separate related commands by single returns
-    # See http://pep8.org/  
+def get_text(element):
+    """Gets text from elements, especially the text after child elements (tails)."""
 
-    is_body = False
-    str = ''
-    dumped_dict = dict()
+    if (not isinstance(element, lxml.html.HtmlElement) and
+            not isinstance(element, lxml.html.FormElement) and
+            not isinstance(element, lxml.html.InputElement)):
+        return ''
+    if element.tag == 'script' or element.tag == 'style':
+        return ''
+    text = ''
 
-    # Combination of
+    # Combination of 'caption', 'tbody', and 'thead' plus
     # https://www.w3.org/TR/CSS21/sample.html#q22.0 and
     # https://developer.mozilla.org/en-US/docs/Web/HTML/Block-level_elements
     html_blocks = ['address', 'article', 'aside', 'blockquote', 'body',
@@ -206,84 +210,96 @@ def html_to_json(filepath, path_prefix):
         'figcaption', 'figure', 'footer', 'form', 'frame', 'frameset', 'h1',
         'h2', 'h3', 'h4', 'h5', 'h6', 'header', 'hgroup', 'hr', 'html',
         'li', 'main', 'menu', 'nav', 'noframes', 'noscript', 'ol', 'output',
-        'p', 'pre', 'section', 'table', 'tfoot', 'ul', 'video']
+        'p', 'pre', 'section', 'table', 'tfoot', 'ul', 'video', 'caption',
+        'tbody', 'thead']
 
-    tree = html.parse(filepath)
-    root = tree.getroot()
+    if element.text:
+        text += element.text
 
-    if root == None:
-        return dict()
+    for child in element.iterchildren():
+        text += get_text(child)
 
-    for element in root.iter():
-        if is_body == False:
+    if element.tail:
+        text += element.tail
 
-            # Process meta elements
-            if element.tag == 'meta':
-                attrib_list = element.attrib
-                if 'name' in attrib_list and 'content' in attrib_list:
-                    dumped_dict[attrib_list.get('name')] = attrib_list.get('content')
+    if element.tag in html_blocks:
+        text = ' ' + text + ' '
 
-            # Process title element
-            # TODO: Need to account for bad HTML that has elements inside title
-            elif element.tag == 'title':
-                title = element.text
-                title = normalize_whitespace(title)
-                title = trim_prefix(title, 'Chapter')
-                title = title.lstrip(' 0123456789.') # Remove section number, if present
-                dumped_dict['title'] = title
+    return text
 
-            elif element.tag == 'body':
-                is_body = True
 
-        # Process elements in body element
-        elif is_body == True:
-            if element.tag in html_blocks:
-                element_separator = ' '
-            else:
-                element_separator = ''
-            str = str + element_separator
-
-            # TODO Problem: The code as written only gets the first text node in an
-            # element. Needs to be updated to get all text nodes. For example:
-            # <p>For <span class="bold"><strong>Oracle</strong></span>:</p>
-            # should return   For Oracle:
-            # but currently returns    ForOracle
-            # The colon -- the second text node in the p element -- is missing.
-            # Also, need to check to see why the space after For is missing.
-            # docs.hortonworks.com/HDPDocuments/Ambari-1.5.0.0/bk_ambari_reference/content/ambari-chaplast-1.html
-            # docs.hortonworks.com-json/HDPDocuments/Ambari-1.5.0.0/bk_ambari_reference/content/ambari-chaplast-1_html.json
-
-            # TODO: Need to account for text directly in body, text not an element in body
+def html_to_json(html_path, path_prefix):
+    """Parse HTML and return a dictionary that can be converted to a JSON file."""
     
-            # TODO If /html/body/div[@id='content'], then only get that element
-            # Especially, exclude //div[@class='legal'] and //div[@id='leftnavigation']
-    
-            # TODO Exclude comments. Not sure why <!--jQuery plugin for glossary popups. -->
-            # is appearing in the JSON. I think the parser should automatically remove
-            # comments.
+    dictionary = {}
 
-            if element.text:
-                str = str + element.text
-                str = normalize_whitespace(str)
-                dumped_dict['text'] = str
+    # Parse page
+    etree = lxml.html.parse(html_path)
+
+    # Process meta elements
+    for meta in etree.xpath("//meta"):
+        attribs = meta.attrib
+        if 'name' in attribs and 'content' in attribs:
+            meta_name = attribs.get('name').lower().strip()
+            meta_content = attribs.get('content')
+            meta_content = normalize_whitespace(meta_content)
+            dictionary[meta_name] = meta_content
+
+    # Get page title
+    title = etree.xpath("//title")
+    if title:
+        title = get_text(title[0])
+    else:
+        title = 'no title'
+    title = normalize_whitespace(title)
+    title = trim_prefix(title, 'Chapter')
+    title = title.lstrip('0123456789.  ') # nonbreaking space included
+    dictionary['title'] = title
+
+    # Get text from areas representing priority content
+    # Matches in this content should cause the document to rank higher
+    priority_content = ['//h1', '//h2', '//h3', '//h4', '//h5', '//h6',
+            '//title', "//caption", "//figcaption"]
+    priority_text_list = []
+    for xpath in priority_content:
+        for elem in etree.xpath(xpath):
+            if isinstance(elem, lxml.html.HtmlElement):
+                p_text = get_text(elem)
+                p_text = p_text.lstrip('0123456789.  ') # nonbreaking space included
+                priority_text_list.append(p_text)
+    if 'description' in dictionary:
+        priority_text_list.append(dictionary['description'])
+    if 'keywords' in dictionary:
+        priority_text_list.append(dictionary['keywords'])
+    priority_text = ' '.join(priority_text_list)
+    priority_text = normalize_whitespace(priority_text)
+    dictionary['ptext'] = priority_text
+
+    # Get page content
+    content = etree.xpath("/html/body/div[@id='content']")
+    if content:
+        text = get_text(content[0])
+    else:
+        text = get_text(etree.getroot())
+    text = normalize_whitespace(text)
+    dictionary['text'] = text
 
     # Convert file system path to URL syntax
-    trimed_path = trim_prefix(filepath, path_prefix)
+    trimed_path = trim_prefix(html_path, path_prefix)
     url_escaped_path = urllib.parse.quote(trimed_path)   
-    dumped_dict['url'] = url_escaped_path
+    dictionary['url'] = url_escaped_path
 
     # Get file modification date
-    datetime = get_datetime(filepath)
-    dumped_dict['date'] = datetime
+    datetime = get_datetime(html_path)
+    dictionary['date'] = datetime
 
     # Update dictionary with metadata from the file path
-    path_metadata = parse_path(filepath)
-    dumped_dict.update(path_metadata)
+    path_metadata = parse_path(html_path)
+    dictionary.update(path_metadata)
 
-    return dumped_dict
+    return dictionary
 
 
 # Command-line interface
-# TODO Use https://docs.python.org/3/library/getopt.html
 if __name__ == '__main__':
-    mirror_dirs(sys.argv[1], sys.argv[2])
+    mirror_dirs(args.in_dir, args.out_dir)
