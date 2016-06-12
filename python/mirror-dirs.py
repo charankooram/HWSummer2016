@@ -63,6 +63,10 @@ logging.getLogger().setLevel(ARGS.verbosity)
 
 def mirror_dirs(src_dir, dest_dir):
     """Recurse src_dir to mirror text and HTML files in dest_dir as JSON files."""
+    assert isinstance(src_dir, str), (
+        'src_dir is not a string: %r' % src_dir)
+    assert isinstance(dest_dir, str), (
+        'path_prefix is not a string: %r' % dest_dir)
 
     # Fatal error if dest_dir exists. User is forced to either move or
     # delete the existing output directory before continuing.
@@ -103,6 +107,10 @@ def mirror_dirs(src_dir, dest_dir):
 
 def text_to_json(text_file, path_prefix=''):
     """Parse text and return a dictionary that can be converted to a JSON file."""
+    assert isinstance(text_file, str), (
+        'html_path is not a string: %r' % text_file)
+    assert isinstance(path_prefix, str), (
+        'path_prefix is not a string: %r' % path_prefix)
 
     # Get file modification date
     datetime = get_datetime(text_file)
@@ -133,37 +141,47 @@ def text_to_json(text_file, path_prefix=''):
 
 def normalize_whitespace(text):
     """Collapses whitespace runs to a single space, trims leading and trailing spaces."""
+    assert isinstance(text, str), (
+        'text is not a string: %r' % text)
     text = re.sub(r'\s+', ' ', text)
     text = text.strip()
     return text
 
 
-def trim_prefix(string, prefix):
+def trim_prefix(original, prefix):
     """Remove prefix from string."""
-    if string.startswith(prefix):
-        return string[len(prefix):]
+    assert isinstance(original, str), (
+        'original is not a string: %r' % original)
+    assert isinstance(prefix, str), (
+        'prefix is not a string: %r' % prefix)
+    if original.startswith(prefix):
+        return original[len(prefix):]
     else:
-        return string
+        return original
 
 
 def parse_path(path):
     """Get product, release, and book name from path"""
+    assert isinstance(path, str), (
+        'path is not a string: %r' % path)
 
     path_metadata = {}
 
     # Look for paths like HDPDocuments/SS1/SmartSense-1.2.2/bk_smartsense_admin
     # and HDPDocuments/HDP2/HDP-2.3-yj/bk_cluster-planning-guide
     std_path = re.search(r"""
-        HDPDocuments / ([^/]+) / \w+ - ([-.\w]+) / (?: ds_ | bk_ ) ([^/]+) /
+        HDPDocuments / [^/]+ / (\w+) - ([-.\w]+) / (?: ds_ | bk_ )? ([^/]+) /
         """, path, flags=re.X)
     if std_path and std_path.group(1) and std_path.group(2) and std_path.group(3):
         path_metadata['product'] = std_path.group(1)
+        if path_metadata['product'] == 'Cldbrk':
+            path_metadata['product'] = 'Cloudbreak'
         path_metadata['release'] = std_path.group(2)
         path_metadata['booktitle'] = std_path.group(3)
 
     # Look for paths like HDPDocuments/HDP2/HDP-2.2.4-Win/bk_Clust_Plan_Gd_Win
     win_new_path = re.search(r"""
-        HDPDocuments / HDP[12] / \w+ - ([.\w]+) - Win / (?: ds_ | bk_ ) ([^/]+) /
+        HDPDocuments / HDP[12] / \w+ - ([.\w]+) - Win / (?: ds_ | bk_ )? ([^/]+) /
         """, path, flags=re.X)
     if win_new_path and win_new_path.group(1) and win_new_path.group(2):
         path_metadata['product'] = 'HDP-Win'
@@ -172,7 +190,7 @@ def parse_path(path):
 
     # Look for paths like HDPDocuments/HDP1/HDP-Win-1.1/bk_cluster-planning-guide
     win_old_path = re.search(r"""
-        HDPDocuments / HDP[12] / HDP-Win - ([.\w]+) / (?: ds_ | bk_ ) ([^/]+) /
+        HDPDocuments / HDP[12] / HDP-Win - ([.\w]+) / (?: ds_ | bk_ )? ([^/]+) /
         """, path, flags=re.X)
     if win_old_path and win_old_path.group(1) and win_old_path.group(2):
         path_metadata['product'] = 'HDP-Win'
@@ -181,18 +199,50 @@ def parse_path(path):
 
     # Look for paths like HDPDocuments/Ambari-1.5.0.0/bk_ambari_security
     ambari_path = re.search(r"""
-        HDPDocuments / Ambari - ([.\w]+) / (?: ds_ | bk_ ) ([^/]+) /
+        HDPDocuments / Ambari - ([.\w]+) / (?: ds_ | bk_ )? ([^/]+) /
         """, path, flags=re.X)
     if ambari_path and ambari_path.group(1) and ambari_path.group(2):
         path_metadata['product'] = 'Ambari'
         path_metadata['release'] = ambari_path.group(1)
         path_metadata['booktitle'] = ambari_path.group(2)
 
+    # Look for paths like HDPDocuments/Ambari/Ambari-2.2.2.0/index.html
+    std_path_index = re.search(r"""
+        HDPDocuments / [^/]+ / (\w+) - ([.\w]+) / [^/]+ [.]html? \Z
+        """, path, flags=re.X)
+    if std_path_index and std_path_index.group(1) and std_path_index.group(2):
+        path_metadata['product'] = std_path_index.group(1)
+        path_metadata['release'] = std_path_index.group(2)
+
+    # Look for paths like HDPDocuments/Ambari-1.7.0.0/index.html
+    ambari_path_index = re.search(r"""
+        HDPDocuments / Ambari - ([.\w]+) / [^/]+ [.]html? \Z
+        """, path, flags=re.X)
+    if ambari_path_index and ambari_path_index.group(1):
+        path_metadata['product'] = 'Ambari'
+        path_metadata['release'] = ambari_path_index.group(1)
+
+    # Look for paths like HDPDocuments/Ambari-1.7.0.0/index.html
+    # and HDPDocuments/SS1/index.html
+    product_index = re.search(r"""
+        HDPDocuments /  ([a-zA-Z]+) [^/]* / [^/]+ [.]html? \Z
+        """, path, flags=re.X)
+    if product_index and product_index.group(1):
+        if product_index.group(1) == 'SS':
+            path_metadata['product'] = 'SmartSense'
+        else:
+            path_metadata['product'] = product_index.group(1)
+
+    if 'product' not in path_metadata:
+        logging.warning('nonstandard directory path: ' + path)
+
     return path_metadata
 
 
 def get_datetime(path):
     """Return UTC file modification date in datetime format."""
+    assert isinstance(path, str), (
+        'path is not a string: %r' % path)
     since_epoch = os.path.getmtime(path)
     utc_time = time.gmtime(since_epoch)
     datetime = time.strftime('%Y-%m-%dT%H:%M:%S', utc_time)
@@ -237,11 +287,16 @@ def get_text(element):
     return text
 
 
-def html_to_json(html_path, path_prefix):
+def html_to_json(html_path, path_prefix=''):
     """Parse HTML and return a dictionary that can be converted to a JSON file."""
+    assert isinstance(html_path, str), (
+        'html_path is not a string: %r' % html_path)
+    assert isinstance(path_prefix, str), (
+        'path_prefix is not a string: %r' % path_prefix)
 
     dictionary = {}
-    section_numbering_characters = '0123456789.  ' # nonbreaking space included
+    section_numbering_characters = ('-.0123456789'
+                                    "\N{SPACE}\N{NO-BREAK SPACE}\N{EN DASH}")
 
     # Parse page
     etree = lxml.html.parse(html_path)
@@ -259,12 +314,12 @@ def html_to_json(html_path, path_prefix):
     title = etree.xpath("//title")
     if title:
         title = get_text(title[0])
+        title = normalize_whitespace(title)
+        title = trim_prefix(title, 'Chapter')
+        title = title.lstrip(section_numbering_characters)
+        dictionary['title'] = title
     else:
-        title = 'no title'
-    title = normalize_whitespace(title)
-    title = trim_prefix(title, 'Chapter')
-    title = title.lstrip(section_numbering_characters)
-    dictionary['title'] = title
+        logging.error('no title found: ' + html_path)
 
     # Get text from areas representing priority content
     # Matches in this content should cause the document to rank higher
