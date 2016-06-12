@@ -4,7 +4,7 @@
 Takes about 75 minutes to run on docs.hortonworks.com content
 
 For usage, run:
-    python3 mirror-dirs.py --help
+    python3 jsonify.py --help
 
 Questions: Robert Crews <rcrews@hortonworks.com>
 
