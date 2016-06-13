@@ -30,36 +30,6 @@ import lxml.html
 
 __version__ = '0.0.5'
 
-# Get command-line arguments
-ARGPARSER = argparse.ArgumentParser()
-LOGFILE, _ = os.path.splitext(os.path.basename(__file__))
-LOGFILE += '.log'
-ARGPARSER.add_argument('-l', '--logfile', default=LOGFILE,
-                       help='the log file, defaults to ./' + LOGFILE)
-ARGPARSER.add_argument('-v', '--verbosity', type=int, default=2,
-                       help='message level for log', choices=[1, 2, 3, 4, 5])
-ARGPARSER.add_argument('in_dir',
-                       help='directory containing text and HTML files')
-ARGPARSER.add_argument('out_dir',
-                       help='nonexisting directory where JSON files will be written')
-ARGS = ARGPARSER.parse_args()
-
-# In JSON, include the URL only from the web root. We can add the
-# authority (e.g., the domain, i.e., docs.hortonworks.com) in
-# JavaScript when reading the JSON
-if ARGS.in_dir.endswith('/'):
-    ARGS.in_dir = ARGS.in_dir[:-1] # Remove last character
-
-# https://docs.python.org/3/library/logging.html#levels
-ARGS.verbosity *= 10 # debug, info, warning, error, critical
-
-# Set up logging
-# To monitor progress, tail the log file or use /usr/bin/less in F mode
-logging.basicConfig(
-    format='%(asctime)s %(levelname)8s %(message)s', filemode='w',
-    filename=ARGS.logfile)
-logging.getLogger().setLevel(ARGS.verbosity)
-
 
 def mirror_dirs(src_dir, dest_dir):
     """Recurse src_dir to mirror text and HTML files in dest_dir as JSON files."""
@@ -160,83 +130,125 @@ def trim_prefix(original, prefix):
         return original
 
 
+def standardize_relnum(relnum):
+    """Assure all release numbers have four parts, by appending zeros if necessary"""
+    assert isinstance(relnum, str), (
+        'relnum is not a string: %r' % relnum)
+    parts = relnum.split('.')
+    while len(parts) < 4:
+        parts.append('0')
+    return '.'.join(parts)
+
+
 def parse_path(path):
     """Get product, release, and book name from path"""
     assert isinstance(path, str), (
         'path is not a string: %r' % path)
 
-    path_metadata = {}
+    metadata = {}
+    regex = {}
 
-    # Look for paths like HDPDocuments/SS1/SmartSense-1.2.2/bk_smartsense_admin
-    # and HDPDocuments/HDP2/HDP-2.3-yj/bk_cluster-planning-guide
-    std_path = re.search(r"""
-        HDPDocuments / [^/]+ / (\w+) - ([-.\w]+) / (?: ds_ | bk_ )? ([^/]+) /
-        """, path, flags=re.X)
-    if std_path and std_path.group(1) and std_path.group(2) and std_path.group(3):
-        path_metadata['product'] = std_path.group(1)
-        if path_metadata['product'] == 'Cldbrk':
-            path_metadata['product'] = 'Cloudbreak'
-        path_metadata['release'] = std_path.group(2)
-        path_metadata['booktitle'] = std_path.group(3)
+    # Paths like HDPDocuments/SS1/SmartSense-1.2.2/bk_smartsense_admin/
+    regex['std_path'] = re.compile(r"""
+        HDPDocuments/[^/]+/ (?P<p>\w+) - (?P<r>[.\w]+) /(?:ds_|bk_)? (?P<b>[^/]+) /
+        """, flags=re.X)
 
-    # Look for paths like HDPDocuments/HDP2/HDP-2.2.4-Win/bk_Clust_Plan_Gd_Win
-    win_new_path = re.search(r"""
-        HDPDocuments / HDP[12] / \w+ - ([.\w]+) - Win / (?: ds_ | bk_ )? ([^/]+) /
-        """, path, flags=re.X)
-    if win_new_path and win_new_path.group(1) and win_new_path.group(2):
-        path_metadata['product'] = 'HDP-Win'
-        path_metadata['release'] = win_new_path.group(1)
-        path_metadata['booktitle'] = win_new_path.group(2)
+    # Paths like HDPDocuments/HDP2/HDP-2.2.4-Win/bk_Clust_Plan_Gd_Win/
+    regex['win_new_path'] = re.compile(r"""
+        HDPDocuments/[^/]+/HDP- (?P<r>[.\w]+) -Win /(?:ds_|bk_)? (?P<b>[^/]+) /
+        """, flags=re.X)
 
-    # Look for paths like HDPDocuments/HDP1/HDP-Win-1.1/bk_cluster-planning-guide
-    win_old_path = re.search(r"""
-        HDPDocuments / HDP[12] / HDP-Win - ([.\w]+) / (?: ds_ | bk_ )? ([^/]+) /
-        """, path, flags=re.X)
-    if win_old_path and win_old_path.group(1) and win_old_path.group(2):
-        path_metadata['product'] = 'HDP-Win'
-        path_metadata['release'] = win_old_path.group(1)
-        path_metadata['booktitle'] = win_old_path.group(2)
+    # Paths like HDPDocuments/HDP1/HDP-Win-1.1/bk_cluster-planning-guide/
+    regex['win_old_path'] = re.compile(r"""
+        HDPDocuments/[^/]+/HDP-Win- (?P<r>[.\w]+) / (?:ds_|bk_)? (?P<b>[^/]+) /
+        """, flags=re.X)
 
-    # Look for paths like HDPDocuments/Ambari-1.5.0.0/bk_ambari_security
-    ambari_path = re.search(r"""
-        HDPDocuments / Ambari - ([.\w]+) / (?: ds_ | bk_ )? ([^/]+) /
-        """, path, flags=re.X)
-    if ambari_path and ambari_path.group(1) and ambari_path.group(2):
-        path_metadata['product'] = 'Ambari'
-        path_metadata['release'] = ambari_path.group(1)
-        path_metadata['booktitle'] = ambari_path.group(2)
+    # Paths like HDPDocuments/Ambari-1.5.0.0/bk_ambari_security/
+    regex['ambari_path'] = re.compile(r"""
+        HDPDocuments/Ambari- (?P<r>[.\w]+) / (?:ds_|bk_)? (?P<b>[^/]+) /
+        """, flags=re.X)
 
-    # Look for paths like HDPDocuments/Ambari/Ambari-2.2.2.0/index.html
-    std_path_index = re.search(r"""
-        HDPDocuments / [^/]+ / (\w+) - ([.\w]+) / [^/]+ [.]html? \Z
-        """, path, flags=re.X)
-    if std_path_index and std_path_index.group(1) and std_path_index.group(2):
-        path_metadata['product'] = std_path_index.group(1)
-        path_metadata['release'] = std_path_index.group(2)
+    # Paths like HDPDocuments/Ambari/Ambari-2.2.2.0/index.html
+    regex['std_path_index'] = re.compile(r"""
+        HDPDocuments/[^/]+/ (?P<p>\w+) - (?P<r>[.\w]+) /[^/]+(?:[.]html?|[.]txt)\Z
+        """, flags=re.X)
 
-    # Look for paths like HDPDocuments/Ambari-1.7.0.0/index.html
-    ambari_path_index = re.search(r"""
-        HDPDocuments / Ambari - ([.\w]+) / [^/]+ [.]html? \Z
-        """, path, flags=re.X)
-    if ambari_path_index and ambari_path_index.group(1):
-        path_metadata['product'] = 'Ambari'
-        path_metadata['release'] = ambari_path_index.group(1)
+    # Paths like HDPDocuments/HDP2/HDP-2.1.15-Win/index.html
+    regex['win_new_index'] = re.compile(r"""
+        HDPDocuments/[^/]+/HDP- (?P<r>[.\w]+) -Win/[^/]+(?:[.]html?|[.]txt)\Z
+        """, flags=re.X)
 
-    # Look for paths like HDPDocuments/Ambari-1.7.0.0/index.html
-    # and HDPDocuments/SS1/index.html
-    product_index = re.search(r"""
-        HDPDocuments /  ([a-zA-Z]+) [^/]* / [^/]+ [.]html? \Z
-        """, path, flags=re.X)
-    if product_index and product_index.group(1):
-        if product_index.group(1) == 'SS':
-            path_metadata['product'] = 'SmartSense'
-        else:
-            path_metadata['product'] = product_index.group(1)
+    # Paths like HDPDocuments/HDP1/HDP-Win-1.3.0/index.html
+    regex['win_old_index'] = re.compile(r"""
+        HDPDocuments/[^/]+/HDP-Win - (?P<r>[.\w]+) /[^/]+(?:[.]html?|[.]txt)\Z
+        """, flags=re.X)
 
-    if 'product' not in path_metadata:
-        logging.warning('nonstandard directory path: ' + path)
+    # Paths like HDPDocuments/Ambari-1.7.0.0/index.html
+    regex['ambari_path_index'] = re.compile(r"""
+        HDPDocuments/Ambari- (?P<r>[.\w]+) /[^/]+(?:[.]html?|[.]txt)\Z
+        """, flags=re.X)
 
-    return path_metadata
+    # Paths like HDPDocuments/SS1/index.html
+    regex['product_index'] = re.compile(r"""
+        HDPDocuments/(?P<p>[a-zA-Z]+) [^/]*/[^/]+(?:[.]html?|[.]txt)\Z
+        """, flags=re.X)
+
+    if regex['std_path'].search(path):
+        match = regex['std_path'].search(path)
+        metadata['product'] = match.group('p')
+        if metadata['product'] == 'Cldbrk':
+            metadata['product'] = 'Cloudbreak'
+        metadata['release'] = standardize_relnum(match.group('r'))
+        metadata['booktitle'] = match.group('b')
+
+    elif regex['win_new_path'].search(path):
+        match = regex['win_new_path'].search(path)
+        metadata['product'] = 'HDP-Win'
+        metadata['release'] = standardize_relnum(match.group('r'))
+        metadata['booktitle'] = match.group('b')
+
+    elif regex['win_old_path'].search(path):
+        match = regex['win_old_path'].search(path)
+        metadata['product'] = 'HDP-Win'
+        metadata['release'] = standardize_relnum(match.group('r'))
+        metadata['booktitle'] = match.group('b')
+
+    elif regex['ambari_path'].search(path):
+        match = regex['ambari_path'].search(path)
+        metadata['product'] = 'Ambari'
+        metadata['release'] = standardize_relnum(match.group('r'))
+        metadata['booktitle'] = match.group('b')
+
+    elif regex['std_path_index'].search(path):
+        match = regex['std_path_index'].search(path)
+        metadata['product'] = match.group('p')
+        metadata['release'] = standardize_relnum(match.group('r'))
+
+    elif regex['win_new_index'].search(path):
+        match = regex['win_new_index'].search(path)
+        metadata['product'] = 'HDP-Win'
+        metadata['release'] = standardize_relnum(match.group('r'))
+
+    elif regex['win_old_index'].search(path):
+        match = regex['win_old_index'].search(path)
+        metadata['product'] = 'HDP-Win'
+        metadata['release'] = standardize_relnum(match.group('r'))
+
+    elif regex['ambari_path_index'].search(path):
+        match = regex['ambari_path_index'].search(path)
+        metadata['product'] = 'Ambari'
+        metadata['release'] = standardize_relnum(match.group('r'))
+
+    elif regex['product_index'].search(path):
+        match = regex['product_index'].search(path)
+        metadata['product'] = match.group('p')
+        if metadata['product'] == 'SS':
+            metadata['product'] = 'SmartSense'
+
+    else:
+        logging.warning('parse_path() couldn\'t get product from ' + path)
+
+    return metadata
 
 
 def get_datetime(path):
@@ -305,19 +317,16 @@ def html_to_json(html_path, path_prefix=''):
     for meta in etree.xpath("//meta"):
         attribs = meta.attrib
         if 'name' in attribs and 'content' in attribs:
-            meta_name = attribs.get('name').lower().strip()
-            meta_content = attribs.get('content')
-            meta_content = normalize_whitespace(meta_content)
-            dictionary[meta_name] = meta_content
+            dictionary[attribs.get('name').lower().strip()] = (
+                normalize_whitespace(attribs.get('content')))
 
     # Get page title
-    title = etree.xpath("//title")
-    if title:
-        title = get_text(title[0])
-        title = normalize_whitespace(title)
-        title = trim_prefix(title, 'Chapter')
-        title = title.lstrip(section_numbering_characters)
-        dictionary['title'] = title
+    titles = etree.xpath("//title")
+    if titles:
+        dictionary['title'] = get_text(titles[0])
+        dictionary['title'] = normalize_whitespace(dictionary['title'])
+        dictionary['title'] = trim_prefix(dictionary['title'], 'Chapter')
+        dictionary['title'] = dictionary['title'].lstrip(section_numbering_characters)
     else:
         logging.error('no title found: ' + html_path)
 
@@ -343,28 +352,55 @@ def html_to_json(html_path, path_prefix=''):
     # Get page content
     content = etree.xpath("/html/body/div[@id='content']")
     if content:
-        text = get_text(content[0])
+        dictionary['text'] = get_text(content[0])
     else:
-        text = get_text(etree.getroot())
-    text = normalize_whitespace(text)
-    dictionary['text'] = text
+        dictionary['text'] = get_text(etree.getroot())
+    dictionary['text'] = normalize_whitespace(dictionary['text'])
 
     # Convert file system path to URL syntax
-    trimed_path = trim_prefix(html_path, path_prefix)
-    url_escaped_path = urllib.parse.quote(trimed_path)
-    dictionary['url'] = url_escaped_path
+    dictionary['url'] = trim_prefix(html_path, path_prefix)
+    dictionary['url'] = urllib.parse.quote(dictionary['url'])
 
     # Get file modification date
-    datetime = get_datetime(html_path)
-    dictionary['date'] = datetime
+    dictionary['date'] = get_datetime(html_path)
 
     # Update dictionary with metadata from the file path
-    path_metadata = parse_path(html_path)
-    dictionary.update(path_metadata)
+    dictionary.update(parse_path(html_path))
 
     return dictionary
 
 
 # Command-line interface
 if __name__ == '__main__':
+
+    # Get command-line arguments
+    ARGPARSER = argparse.ArgumentParser()
+    LOGFILE, _ = os.path.splitext(os.path.basename(__file__))
+    LOGFILE += '.log'
+    ARGPARSER.add_argument('-l', '--logfile', default=LOGFILE,
+                           help='the log file, defaults to ./' + LOGFILE)
+    ARGPARSER.add_argument('-v', '--verbosity', type=int, default=2,
+                           help='message level for log', choices=[1, 2, 3, 4, 5])
+    ARGPARSER.add_argument('in_dir',
+                           help='directory containing text and HTML files')
+    ARGPARSER.add_argument('out_dir',
+                           help='nonexisting directory where JSON files will be written')
+    ARGS = ARGPARSER.parse_args()
+
+    # In JSON, include the URL only from the web root. We can add the
+    # authority (e.g., the domain, i.e., docs.hortonworks.com) in
+    # JavaScript when reading the JSON
+    if ARGS.in_dir.endswith('/'):
+        ARGS.in_dir = ARGS.in_dir[:-1] # Remove last character
+
+    # https://docs.python.org/3/library/logging.html#levels
+    ARGS.verbosity *= 10 # debug, info, warning, error, critical
+
+    # Set up logging
+    # To monitor progress, tail the log file or use /usr/bin/less in F mode
+    logging.basicConfig(
+        format='%(asctime)s %(levelname)8s %(message)s', filemode='w',
+        filename=ARGS.logfile)
+    logging.getLogger().setLevel(ARGS.verbosity)
+
     mirror_dirs(ARGS.in_dir, ARGS.out_dir)
