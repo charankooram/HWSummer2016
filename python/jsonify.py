@@ -421,7 +421,7 @@ def html_to_json(html_path, path_prefix=''):
         dictionary['title'] = trim_prefix(dictionary['title'], 'Chapter')
         dictionary['title'] = dictionary['title'].lstrip(section_numbering_characters)
     else:
-        logging.error('no title found: ' + html_path)
+        logging.error('No title: ' + html_path)
 
     # Get text from areas representing priority content
     # Matches in this content should cause the document to rank higher
