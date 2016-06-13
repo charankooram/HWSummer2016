@@ -130,6 +130,18 @@ def trim_prefix(original, prefix):
         return original
 
 
+def trim_suffix(original, suffix):
+    """Remove suffix from string."""
+    assert isinstance(original, str), (
+        'original is not a string: %r' % original)
+    assert isinstance(suffix, str), (
+        'suffix is not a string: %r' % suffix)
+    if original.endswith(suffix):
+        return original[:-len(suffix)]
+    else:
+        return original
+
+
 def standardize_relnum(relnum):
     """Assure all release numbers have four parts, by appending zeros if necessary"""
     assert isinstance(relnum, str), (
@@ -149,6 +161,17 @@ def std_path(match):
     if metadata['product'] == 'Cldbrk':
         metadata['product'] = 'Cloudbreak'
     metadata['release'] = standardize_relnum(match.group('r'))
+    metadata['booktitle'] = match.group('b')
+    return metadata
+
+
+def hdp_23_yj_path(match):
+    """Get product, version, and book title from path, where possible"""
+    assert isinstance(match, type(re.match('', ''))), (
+        'match is not a re.match: %r' % match)
+    metadata = {}
+    metadata['product'] = 'HDP'
+    metadata['release'] = 'HDP-2.3.0.0-yj'
     metadata['booktitle'] = match.group('b')
     return metadata
 
@@ -249,6 +272,11 @@ def parse_path(path):
         HDPDocuments/[^/]+/ (?P<p>\w+) - (?P<r>[.\w]+) /(?:ds_|bk_)? (?P<b>[^/]+) /
         """, flags=re.X)
 
+    # Paths like HDPDocuments/HDP2/HDP-2.3-yj/bk_hadoop-ha/
+    regex['hdp_23_yj_path'] = re.compile(r"""
+        HDPDocuments/HDP2/HDP-2.3-yj/(?:ds_|bk_)? (?P<b>[^/]+) /
+        """, flags=re.X)
+
     # Paths like HDPDocuments/HDP2/HDP-2.2.4-Win/bk_Clust_Plan_Gd_Win/
     regex['win_new_path'] = re.compile(r"""
         HDPDocuments/[^/]+/HDP- (?P<r>[.\w]+) -Win /(?:ds_|bk_)? (?P<b>[^/]+) /
@@ -293,6 +321,7 @@ def parse_path(path):
     # (which happen to have the same name)
     process = {
         'std_path': std_path,
+        'hdp_23_yj_path': hdp_23_yj_path,
         'win_new_path': win_new_path,
         'win_old_path': win_old_path,
         'ambari_path': ambari_path,
@@ -309,7 +338,7 @@ def parse_path(path):
         if match:
             return process[key](match)
 
-    logging.warning('parse_path() couldn\'t get product from ' + path)
+    logging.warning('No product from ' + path)
     return {}
 
 
@@ -420,6 +449,7 @@ def html_to_json(html_path, path_prefix=''):
     else:
         dictionary['text'] = get_text(etree.getroot())
     dictionary['text'] = normalize_whitespace(dictionary['text'])
+    dictionary['text'] = trim_suffix(dictionary['text'], ' Legal notices')
 
     # Convert file system path to URL syntax
     dictionary['url'] = trim_prefix(html_path, path_prefix)
