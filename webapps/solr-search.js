@@ -71,6 +71,8 @@ function onGettingResponse(){
 
 
 function UponSubmit() {
+    url = 'http://localhost:8983/solr/feds/query?q=';
+    pageArray = [];
     var textContent = document.querySelector("#q").value;
     url = url + textContent + '&sort=id+asc&cursorMark=';
     pageArray.push('*');
