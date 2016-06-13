@@ -79,6 +79,10 @@ function UponSubmit() {
 }
 
 function UponNext(){
+    if(pageArray[current+1] == undefined){
+        console.log("cannot go next because of undefined variable");
+        return;
+    }
     current++;
     GetResponse(url, pageArray[current]);
     console.log("pageset after hitting next :"+pageArray.toString());
