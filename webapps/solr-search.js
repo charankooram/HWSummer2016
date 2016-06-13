@@ -1,5 +1,5 @@
 /* .. start with all the global variables here...*/
-var url = 'http://localhost:8983/solr/charan06091231/query?q=';
+var url = 'http://localhost:8983/solr/feds/query?q=';
 var pageArray = [];
 console.log("At the beginning page set is:" + pageArray.toString());
 var current = 0;
@@ -20,6 +20,21 @@ function GetResponse(url, cursorMarker) {
     req.open("GET", url, true);
     req.send();
     console.log("REQUEST SENT");
+}
+
+function addnewCursorMarker(newCursorMarker){
+    // check if cursormarker is not seen before.
+    var flag = false;
+    var i;
+    for(i=0;i<pageArray.length;i++){
+        if(pageArray[i] == newCursorMarker){
+            flag = true;
+        }
+    }
+    if(flag != true){
+        pageArray[current+1] = newCursorMarker;
+    }
+    console.log("At the beginning page after this function :" + pageArray.toString()); 
 }
 
 req.onreadystatechange = onGettingResponse;
@@ -48,47 +63,39 @@ function onGettingResponse(){
          }
 
          nextCursorMarker = Data.nextCursorMark;
-
-         //if (!pageSet.has(nextCursorMarker)) {
-         //    pageSet.add(nextCursorMarker);
-         //
-
-         var flag = true;
-         for (var i = 0; i < pageArray.length; i++) {
-             if (pageArray[i] == nextCursorMarker) {
-                 flag = false;
-                 console.log("next page already found in the pages list");
-             }
-         }
-
-         if (flag != false) {
-             pageArray.push(nextCursorMarker);
-         }
-
-         pageArray.push(nextCursorMarker);
+         addnewCursorMarker(nextCursorMarker);
          document.getElementById("incoming").innerHTML = out;
      }
 }
 
+
+
 function UponSubmit() {
+    url = 'http://localhost:8983/solr/feds/query?q=';
+    pageArray = [];
     var textContent = document.querySelector("#q").value;
-    url = url + textContent + '&sort=id+asc&cursorMark='
-    GetResponse(url,'*');
+    url = url + textContent + '&sort=id+asc&cursorMark=';
     pageArray.push('*');
-    console.log("after submit button the pageset is:" + pageArray.toString());
-    current = 0;
-    console.log("current is:" + current);
+    GetResponse(url,pageArray[current]);
+    console.log("pageset after submitting :"+pageArray.toString());
 }
 
 function UponNext(){
+    if(pageArray[current+1] == undefined){
+        console.log("cannot go next because of undefined variable");
+        return;
+    }
     current++;
-    console.log("current is:" + current);
-    console.log("current mark in the pageset:" + pageArray[current]);
     GetResponse(url, pageArray[current]);
+    console.log("pageset after hitting next :"+pageArray.toString());
 }
 
 function UponPrev(){
+    if(current == 0){
+        console.log("cannot go back");
+        return;
+    }
     current--;
-    console.log("current is:" + current);
     GetResponse(url,pageArray[current]);
+    console.log("page set after hitting prev :"+pageArray.toString());
 }
