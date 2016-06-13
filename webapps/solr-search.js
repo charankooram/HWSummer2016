@@ -74,11 +74,11 @@ function onGettingResponse() {
                     "</p><br / >";
         }*/
         
-        Data.response.docs.forEach(function AddToHTML(index) {
+        Data.response.docs.forEach(function AddToHTML(value) {
             urlstring = "http://docs.hortonworks.com/HDPDocuments" +
-                         Data.response.docs[index].url;
-            textmaterial = Data.response.docs[index].text;
-            out += "<a href=" + urlstring + ">" + Data.response.docs[index].title +
+                         value.url;
+            textmaterial = value.text;
+            out += "<a href=" + urlstring + ">" + value.title +
                     "</a><br />" + urlstring + "<br />" + "<p>" +
                     textmaterial.toString().substring(0, 400) + trailingdots +
                     "</p><br / >";
