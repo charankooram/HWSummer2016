@@ -140,12 +140,108 @@ def standardize_relnum(relnum):
     return '.'.join(parts)
 
 
+def std_path(match):
+    """Get product, version, and book title from path, where possible"""
+    assert isinstance(match, type(re.match('', ''))), (
+        'match is not a re.match: %r' % match)
+    metadata = {}
+    metadata['product'] = match.group('p')
+    if metadata['product'] == 'Cldbrk':
+        metadata['product'] = 'Cloudbreak'
+    metadata['release'] = standardize_relnum(match.group('r'))
+    metadata['booktitle'] = match.group('b')
+    return metadata
+
+
+def win_new_path(match):
+    """Get product, version, and book title from path, where possible"""
+    assert isinstance(match, type(re.match('', ''))), (
+        'match is not a re.match: %r' % match)
+    metadata = {}
+    metadata['product'] = 'HDP-Win'
+    metadata['release'] = standardize_relnum(match.group('r'))
+    metadata['booktitle'] = match.group('b')
+    return metadata
+
+
+def win_old_path(match):
+    """Get product, version, and book title from path, where possible"""
+    assert isinstance(match, type(re.match('', ''))), (
+        'match is not a re.match: %r' % match)
+    metadata = {}
+    metadata['product'] = 'HDP-Win'
+    metadata['release'] = standardize_relnum(match.group('r'))
+    metadata['booktitle'] = match.group('b')
+    return metadata
+
+
+def ambari_path(match):
+    """Get product, version, and book title from path, where possible"""
+    assert isinstance(match, type(re.match('', ''))), (
+        'match is not a re.match: %r' % match)
+    metadata = {}
+    metadata['product'] = 'Ambari'
+    metadata['release'] = standardize_relnum(match.group('r'))
+    metadata['booktitle'] = match.group('b')
+    return metadata
+
+
+def std_path_index(match):
+    """Get product, version, and book title from path, where possible"""
+    assert isinstance(match, type(re.match('', ''))), (
+        'match is not a re.match: %r' % match)
+    metadata = {}
+    metadata['product'] = match.group('p')
+    metadata['release'] = standardize_relnum(match.group('r'))
+    return metadata
+
+
+def win_new_index(match):
+    """Get product, version, and book title from path, where possible"""
+    assert isinstance(match, type(re.match('', ''))), (
+        'match is not a re.match: %r' % match)
+    metadata = {}
+    metadata['product'] = 'HDP-Win'
+    metadata['release'] = standardize_relnum(match.group('r'))
+    return metadata
+
+
+def win_old_index(match):
+    """Get product, version, and book title from path, where possible"""
+    assert isinstance(match, type(re.match('', ''))), (
+        'match is not a re.match: %r' % match)
+    metadata = {}
+    metadata['product'] = 'HDP-Win'
+    metadata['release'] = standardize_relnum(match.group('r'))
+    return metadata
+
+
+def ambari_path_index(match):
+    """Get product, version, and book title from path, where possible"""
+    assert isinstance(match, type(re.match('', ''))), (
+        'match is not a re.match: %r' % match)
+    metadata = {}
+    metadata['product'] = 'Ambari'
+    metadata['release'] = standardize_relnum(match.group('r'))
+    return metadata
+
+
+def product_index(match):
+    """Get product, version, and book title from path, where possible"""
+    assert isinstance(match, type(re.match('', ''))), (
+        'match is not a re.match: %r' % match)
+    metadata = {}
+    metadata['product'] = match.group('p')
+    if metadata['product'] == 'SS':
+        metadata['product'] = 'SmartSense'
+    return metadata
+
+
 def parse_path(path):
     """Get product, release, and book name from path"""
     assert isinstance(path, str), (
         'path is not a string: %r' % path)
 
-    metadata = {}
     regex = {}
 
     # Paths like HDPDocuments/SS1/SmartSense-1.2.2/bk_smartsense_admin/
@@ -193,66 +289,34 @@ def parse_path(path):
         HDPDocuments/(?P<p>[a-zA-Z]+) [^/]*/[^/]+(?:[.]html?|[.]txt)\Z
         """, flags=re.X)
 
-    if regex['std_path'].search(path):
-        match = regex['std_path'].search(path)
-        metadata['product'] = match.group('p')
-        if metadata['product'] == 'Cldbrk':
-            metadata['product'] = 'Cloudbreak'
-        metadata['release'] = standardize_relnum(match.group('r'))
-        metadata['booktitle'] = match.group('b')
+    # Associate the complied regex keys with function names
+    # (which happen to have the same name)
+    process = {
+        'std_path': std_path,
+        'win_new_path': win_new_path,
+        'win_old_path': win_old_path,
+        'ambari_path': ambari_path,
+        'std_path_index': std_path_index,
+        'win_new_index': win_new_index,
+        'win_old_index': win_old_index,
+        'ambari_path_index': ambari_path_index,
+        'product_index': product_index,
+    }
 
-    elif regex['win_new_path'].search(path):
-        match = regex['win_new_path'].search(path)
-        metadata['product'] = 'HDP-Win'
-        metadata['release'] = standardize_relnum(match.group('r'))
-        metadata['booktitle'] = match.group('b')
+    # Call the appropriate subroutine using the "process" lookup table, above
+    for key in regex:
+        match = regex[key].search(path)
+        if match:
+            return process[key](match)
 
-    elif regex['win_old_path'].search(path):
-        match = regex['win_old_path'].search(path)
-        metadata['product'] = 'HDP-Win'
-        metadata['release'] = standardize_relnum(match.group('r'))
-        metadata['booktitle'] = match.group('b')
-
-    elif regex['ambari_path'].search(path):
-        match = regex['ambari_path'].search(path)
-        metadata['product'] = 'Ambari'
-        metadata['release'] = standardize_relnum(match.group('r'))
-        metadata['booktitle'] = match.group('b')
-
-    elif regex['std_path_index'].search(path):
-        match = regex['std_path_index'].search(path)
-        metadata['product'] = match.group('p')
-        metadata['release'] = standardize_relnum(match.group('r'))
-
-    elif regex['win_new_index'].search(path):
-        match = regex['win_new_index'].search(path)
-        metadata['product'] = 'HDP-Win'
-        metadata['release'] = standardize_relnum(match.group('r'))
-
-    elif regex['win_old_index'].search(path):
-        match = regex['win_old_index'].search(path)
-        metadata['product'] = 'HDP-Win'
-        metadata['release'] = standardize_relnum(match.group('r'))
-
-    elif regex['ambari_path_index'].search(path):
-        match = regex['ambari_path_index'].search(path)
-        metadata['product'] = 'Ambari'
-        metadata['release'] = standardize_relnum(match.group('r'))
-
-    elif regex['product_index'].search(path):
-        match = regex['product_index'].search(path)
-        metadata['product'] = match.group('p')
-        if metadata['product'] == 'SS':
-            metadata['product'] = 'SmartSense'
-
-    else:
-        logging.warning('parse_path() couldn\'t get product from ' + path)
-
-    return metadata
+    logging.warning('parse_path() couldn\'t get product from ' + path)
+    return {}
 
 
 def get_datetime(path):
-    """Return UTC file modification date in datetime format."""
+    """Return UTC file modification date in datetime format. See
+    https://www.w3.org/TR/NOTE-datetime
+    """
     assert isinstance(path, str), (
         'path is not a string: %r' % path)
     since_epoch = os.path.getmtime(path)
