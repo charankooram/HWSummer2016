@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Create JSON from a directory of HTML and text for later insertion into Solr
 
-Takes about 75 minutes to run on docs.hortonworks.com content
+Takes about 75 minutes to run on docs.hortonworks.com content.
 
 For usage, run:
     python3 jsonify.py --help
@@ -171,7 +171,7 @@ def hdp_23_yj_path(match):
         'match is not a re.match: %r' % match)
     metadata = {}
     metadata['product'] = 'HDP'
-    metadata['release'] = 'HDP-2.3.0.0-yj'
+    metadata['release'] = '2.3.0.0-yj'
     metadata['booktitle'] = match.group('b')
     return metadata
 
