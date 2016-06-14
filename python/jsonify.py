@@ -402,9 +402,11 @@ def html_to_json(html_path, path_prefix=''):
     dictionary = {}
     section_numbering_characters = ('-.0123456789'
                                     "\N{SPACE}\N{NO-BREAK SPACE}\N{EN DASH}")
-
     # Parse page
     etree = lxml.html.parse(html_path)
+    if not etree.getroot():
+        logging.error('No root: ' + html_path)
+        return {}
 
     # Process meta elements
     for meta in etree.xpath("//meta"):
