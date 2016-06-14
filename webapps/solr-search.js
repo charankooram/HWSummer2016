@@ -1,4 +1,5 @@
 /* .. start with all the global variables here...*/
+
 var url = "http://localhost:8983/solr/feds/query?q=";
 var pageArray = [];
 console.log("At the beginning page set is:" + pageArray.toString());
@@ -28,12 +29,7 @@ function addnewCursorMarker(newCursorMarker) {
     "use strict";
     // check if cursormarker is not seen before.
     var flag = false;
-    //var i;
-    /*for (i = 0; i < pageArray.length; i += 1) {
-        if (pageArray[i] === newCursorMarker) {
-            flag = true;
-        }
-    }*/
+    
     pageArray.forEach(function checkPresense(value) {
         if (value === newCursorMarker) {
             flag = true;
@@ -56,7 +52,7 @@ function onGettingResponse() {
         var Data = JSON.parse(req.responseText);
         var out = "";
         var trailingdots = "....";
-        //var i;
+        
 
         console.log(Data.response);
         console.log(Data.responseHeader);
@@ -64,15 +60,7 @@ function onGettingResponse() {
         var urlstring;
         var textmaterial;
         
-        /*for (i = 0; i < Data.response.docs.length; i += 1) {
-            urlstring = "http://docs.hortonworks.com/HDPDocuments" +
-                    Data.response.docs[i].url;
-            var textmaterial = Data.response.docs[i].text;
-            out += "<a href=" + urlstring + ">" + Data.response.docs[i].title +
-                    "</a><br />" + urlstring + "<br />" + "<p>" +
-                    textmaterial.toString().substring(0, 400) + trailingdots +
-                    "</p><br / >";
-        }*/
+      
         
         Data.response.docs.forEach(function AddToHTML(value) {
             urlstring = "http://docs.hortonworks.com/HDPDocuments" +
@@ -95,8 +83,7 @@ req.onreadystatechange = onGettingResponse;
 
 function UponSubmit() {
     "use strict";
-    url = "http://localhost:8983/solr/feds/query?q=";
-    pageArray = [];
+      
     var textContent = document.querySelector("#q").value;
     url = url + textContent + "&sort=id+asc&cursorMark=";
     pageArray.push("*");
