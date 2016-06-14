@@ -237,6 +237,7 @@ def process(src_dir, dest_file):
     facet = collections.defaultdict(make_dict)
     facet = get_jsons(src_dir, facet)
 
+    # Convert the booktitle dictionary to a list
     for product in facet:
         for release in facet[product]:
             booktitles = sorted(facet[product][release].keys())

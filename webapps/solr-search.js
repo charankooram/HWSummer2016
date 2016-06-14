@@ -1,5 +1,5 @@
 /* .. start with all the global variables here...*/
-
+/*global window console */ /* For JSLint */
 var url = "http://localhost:8983/solr/feds/query?q=";
 var pageArray = [];
 console.log("At the beginning page set is:" + pageArray.toString());
@@ -41,8 +41,6 @@ function addnewCursorMarker(newCursorMarker) {
     console.log("At the beginning page after this function :" + pageArray.toString());
 }
 
-
-
 function onGettingResponse() {
     "use strict";
     console.log("Ready state is:" + req.readyState);
@@ -59,12 +57,20 @@ function onGettingResponse() {
         console.log(Data.nextCursorMark);
         var urlstring;
         var textmaterial;
-        
-      
-        
+
+        /*for (i = 0; i < Data.response.docs.length; i += 1) {
+            urlstring = "http://docs.hortonworks.com/HDPDocuments" +
+                    Data.response.docs[i].url;
+            var textmaterial = Data.response.docs[i].text;
+            out += "<a href=" + urlstring + ">" + Data.response.docs[i].title +
+                    "</a><br />" + urlstring + "<br />" + "<p>" +
+                    textmaterial.toString().substring(0, 400) + trailingdots +
+                    "</p><br / >";
+        }*/
+
         Data.response.docs.forEach(function AddToHTML(value) {
             urlstring = "http://docs.hortonworks.com/HDPDocuments" +
-                         value.url;
+                    value.url;
             textmaterial = value.text;
             out += "<a href=" + urlstring + ">" + value.title +
                     "</a><br />" + urlstring + "<br />" + "<p>" +
@@ -79,7 +85,6 @@ function onGettingResponse() {
 }
 
 req.onreadystatechange = onGettingResponse;
-
 
 function UponSubmit() {
     "use strict";
