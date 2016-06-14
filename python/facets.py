@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Create JSON from a directory of HTML and text for later insertion into Solr
 
-Takes about 15 minutes to run on docs.hortonworks.com content.
+Takes 2-15 minutes to run on docs.hortonworks.com content.
 Resulting file is about 23 KB.
 
 For usage, run:
@@ -11,6 +11,10 @@ Questions: Robert Crews <rcrews@hortonworks.com>
 
 When complete, the resulting file can be pretty-printed by running this command:
     python -m json.tool facets.json facets-pretty.json
+
+For convenience:
+    time ~/Sandbox/HWSummer2016/python/facets.py docs.hortonworks.com-json && \
+        python -m json.tool facets.json facets-pretty.json
 """
 
 import argparse
@@ -48,7 +52,7 @@ def get_jsons(src_dir, facet):
             if 'product' in jinn:
                 jinn['product'] = product_lookup(jinn['product'])
                 if 'booktitle' in jinn:
-                    jinn['booktitle'] = product_lookup(jinn['booktitle'])
+                    jinn['booktitle'] = booktitle_lookup(jinn['booktitle'])
                     if 'release' in jinn:
                         facet[jinn['product']][jinn['release']][jinn['booktitle']] = '.'
 
@@ -60,6 +64,7 @@ def product_lookup(abbr):
     assert isinstance(abbr, str), (
         'abbr is not a string: %r' % abbr)
     products = {
+        'Ambari': 'Apache Ambari',
         'HDP': 'Data Platform',
         'HDP-Win': 'Data Platform for Windows',
         'HDF': 'DataFlow',
@@ -108,11 +113,11 @@ def booktitle_lookup(abbr):
         "data_movement": 'Hortonworks Data Platform Data Movement Guide',
         "dataintegration": 'Hortonworks Data Platform Data Integration Services Guide',
         "Deploying_Hortonworks_Data_Platform": 'Hortonworks Data Platform Deployment Guide',
-        "DeveloperGuide": 'Hortonworks Data Platform Developer\'s Guide',
+        "DeveloperGuide": 'Hortonworks DataFlow Developer\'s Guide',
         "ExpressionLanguageGuide": 'Hortonworks DataFlow Expression Language Guide',
         "falcon_quickstart_guide": 'Hortonworks Data Platform Apache Falcon Quick Start',
         "falcon": 'Hortonworks Data Platform Apache Falcon Guide',
-        "flume": 'Hortonworks Data Platform Apache Flume Guide',
+        "Flume": 'Hortonworks Data Platform Apache Flume Guide',
         "getting-started-guide": 'Hortonworks Data Platform Getting Started',
         "getting-started-win": 'Hortonworks Data Platform Getting Started for Microsoft Windows',
         "GettingStartedGuide": 'Hortonworks Data Platform Getting Started',
@@ -144,7 +149,7 @@ def booktitle_lookup(abbr):
         "Hive": 'Hortonworks Data Platform Apache Hive Guide',
         "HortonworksConnectorForTeradata": 'Hortonworks Data Platform Terradata Connection Guide',
         "importing_data_into_hbase_guide": 'Hortonworks Data Platform Apache HBase Data Importing Guide',
-        "Installing_HDP_AMB": 'Hortonworks Data Platform Installation Guide',
+        "Installing_HDP_AMB": 'Hortonworks Data Platform Apache Ambari Installation Guide',
         "installing_hdp_for_windows": 'Hortonworks Data Platform Installation Guide for Microsoft Windows',
         "installing_manually_book": 'Hortonworks Data Platform Manual Installation Guide',
         "kafka-guide": 'Hortonworks Data Platform Apache Kafka Guide',
