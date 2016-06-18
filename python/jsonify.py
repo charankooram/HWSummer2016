@@ -70,6 +70,11 @@ def mirror_dirs(src_dir, dest_dir):
             else:
                 pydict = html_to_json(src_path, ARGS.in_dir)
 
+            pydict['stream_size'] = os.path.getsize(src_path)
+            pydict['date'] = get_datetime(src_path)
+            pydict['x_parsed_by'] = ('com.hortonworks.techpubs.' + __file__ +
+                                     ', v' + __version__)
+
             # Write JSON as UTF-8
             with codecs.open(dest_path, mode='w', encoding='UTF-8') as file_handle:
                 json.dump(pydict, file_handle, ensure_ascii=False)
@@ -81,9 +86,6 @@ def text_to_json(text_file, path_prefix=''):
         'html_path is not a string: %r' % text_file)
     assert isinstance(path_prefix, str), (
         'path_prefix is not a string: %r' % path_prefix)
-
-    # Get file modification date
-    datetime = get_datetime(text_file)
 
     # Read text files as cp1252, ignoring errors
     with codecs.open(text_file, mode='r', encoding='cp1252', errors='ignore') as file_h:
@@ -100,11 +102,10 @@ def text_to_json(text_file, path_prefix=''):
     # After compressing whitespace, take all the content of the file for indexing
     text = normalize_whitespace(content)
 
-    dictionary = {'url': url, 'title': title, 'text': text, 'date': datetime}
+    dictionary = {'url': url, 'title': title, 'text': text}
 
     # Update dictionary with metadata from the file path
-    path_dictionary = parse_path(text_file)
-    dictionary.update(path_dictionary)
+    dictionary.update(parse_path(text_file))
 
     return dictionary
 
@@ -142,7 +143,7 @@ def trim_suffix(original, suffix):
         return original
 
 
-def standardize_relnum(relnum):
+def standardize_release(relnum):
     """Assure all release numbers have four parts, by appending zeros if necessary"""
     assert isinstance(relnum, str), (
         'relnum is not a string: %r' % relnum)
@@ -152,15 +153,30 @@ def standardize_relnum(relnum):
     return '.'.join(parts)
 
 
+def standardize_product(abbrev):
+    """Use best product names"""
+    assert isinstance(abbrev, str), (
+        'abbrev is not a string: %r' % abbrev)
+    if abbrev.startswith('HDP'):
+        abbrev = 'Data Platform'
+    if abbrev.startswith('HDP-Win'):
+        abbrev = 'Data Platform for Windows'
+    if abbrev.startswith('HDF'):
+        abbrev = 'DataFlow'
+    if abbrev.startswith('SS'):
+        abbrev = 'SmartSense'
+    if abbrev.startswith('Cldbrk'):
+        abbrev = 'Cloudbreak'
+    return abbrev
+
+
 def std_path(match):
     """Get product, version, and book title from path, where possible"""
     assert isinstance(match, type(re.match('', ''))), (
         'match is not a re.match: %r' % match)
     metadata = {}
     metadata['product'] = match.group('p')
-    if metadata['product'] == 'Cldbrk':
-        metadata['product'] = 'Cloudbreak'
-    metadata['release'] = standardize_relnum(match.group('r'))
+    metadata['release'] = match.group('r')
     metadata['booktitle'] = match.group('b')
     return metadata
 
@@ -182,7 +198,7 @@ def win_new_path(match):
         'match is not a re.match: %r' % match)
     metadata = {}
     metadata['product'] = 'HDP-Win'
-    metadata['release'] = standardize_relnum(match.group('r'))
+    metadata['release'] = match.group('r')
     metadata['booktitle'] = match.group('b')
     return metadata
 
@@ -193,7 +209,7 @@ def win_old_path(match):
         'match is not a re.match: %r' % match)
     metadata = {}
     metadata['product'] = 'HDP-Win'
-    metadata['release'] = standardize_relnum(match.group('r'))
+    metadata['release'] = match.group('r')
     metadata['booktitle'] = match.group('b')
     return metadata
 
@@ -204,7 +220,7 @@ def ambari_path(match):
         'match is not a re.match: %r' % match)
     metadata = {}
     metadata['product'] = 'Ambari'
-    metadata['release'] = standardize_relnum(match.group('r'))
+    metadata['release'] = match.group('r')
     metadata['booktitle'] = match.group('b')
     return metadata
 
@@ -215,7 +231,7 @@ def std_path_index(match):
         'match is not a re.match: %r' % match)
     metadata = {}
     metadata['product'] = match.group('p')
-    metadata['release'] = standardize_relnum(match.group('r'))
+    metadata['release'] = match.group('r')
     return metadata
 
 
@@ -225,7 +241,7 @@ def win_new_index(match):
         'match is not a re.match: %r' % match)
     metadata = {}
     metadata['product'] = 'HDP-Win'
-    metadata['release'] = standardize_relnum(match.group('r'))
+    metadata['release'] = match.group('r')
     return metadata
 
 
@@ -235,7 +251,7 @@ def win_old_index(match):
         'match is not a re.match: %r' % match)
     metadata = {}
     metadata['product'] = 'HDP-Win'
-    metadata['release'] = standardize_relnum(match.group('r'))
+    metadata['release'] = match.group('r')
     return metadata
 
 
@@ -245,7 +261,7 @@ def ambari_path_index(match):
         'match is not a re.match: %r' % match)
     metadata = {}
     metadata['product'] = 'Ambari'
-    metadata['release'] = standardize_relnum(match.group('r'))
+    metadata['release'] = match.group('r')
     return metadata
 
 
@@ -255,8 +271,6 @@ def product_index(match):
         'match is not a re.match: %r' % match)
     metadata = {}
     metadata['product'] = match.group('p')
-    if metadata['product'] == 'SS':
-        metadata['product'] = 'SmartSense'
     return metadata
 
 
@@ -332,14 +346,22 @@ def parse_path(path):
         'product_index': product_index,
     }
 
+    path_metadata = {}
+
     # Call the appropriate subroutine using the "process" lookup table, above
     for key in regex:
         match = regex[key].search(path)
         if match:
-            return process[key](match)
+            path_metadata = process[key](match)
 
-    logging.warning('No product from ' + path)
-    return {}
+    if 'product' in path_metadata:
+        path_metadata['product'] = standardize_product(path_metadata['product'])
+    if 'release' in path_metadata:
+        path_metadata['release'] = standardize_release(path_metadata['release'])
+
+    if not path_metadata:
+        logging.warning('No path metadata from ' + path)
+    return path_metadata
 
 
 def get_datetime(path):
@@ -363,7 +385,7 @@ def get_text(element):
         return ''
     if element.tag == 'script' or element.tag == 'style':
         return ''
-    text = ''
+    text = []
 
     # Combination of 'caption', 'tbody', and 'thead' plus
     # https://www.w3.org/TR/CSS21/sample.html#q22.0 and
@@ -378,18 +400,18 @@ def get_text(element):
                    'caption', 'tbody', 'thead')
 
     if element.text:
-        text += element.text
+        text.append(element.text)
 
     for child in element.iterchildren():
-        text += get_text(child)
+        text.append(get_text(child)) # recurse
 
     if element.tail:
-        text += element.tail
+        text.append(element.tail)
 
     if element.tag in html_blocks:
-        text = ' ' + text + ' '
-
-    return text
+        return ' {0} '.format(''.join(text))
+    else
+        return ''.join(text)
 
 
 def get_html_metas(etree, dictionary):
@@ -538,9 +560,6 @@ def html_to_json(html_path, path_prefix=''):
     # Convert file system path to URL syntax
     dictionary['url'] = trim_prefix(html_path, path_prefix)
     dictionary['url'] = urllib.parse.quote(dictionary['url'])
-
-    # Get file modification date
-    dictionary['date'] = get_datetime(html_path)
 
     # Update dictionary with metadata from the file path
     dictionary.update(parse_path(html_path))
