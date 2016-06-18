@@ -28,7 +28,7 @@ import time
 import urllib.parse
 import lxml.html
 
-__version__ = '0.0.5'
+__version__ = '0.0.6'
 
 
 def mirror_dirs(src_dir, dest_dir):
@@ -54,7 +54,7 @@ def mirror_dirs(src_dir, dest_dir):
         else:
 
             # Consider only files with these extensions for conversion to JSON
-            extensions = ['.html', '.htm', '.txt']
+            extensions = ('.html', '.htm', '.txt')
 
             # If this is a file we want to process, set up JSON file path
             _, extension = os.path.splitext(item)
@@ -368,14 +368,14 @@ def get_text(element):
     # Combination of 'caption', 'tbody', and 'thead' plus
     # https://www.w3.org/TR/CSS21/sample.html#q22.0 and
     # https://developer.mozilla.org/en-US/docs/Web/HTML/Block-level_elements
-    html_blocks = ['address', 'article', 'aside', 'blockquote', 'body',
+    html_blocks = ('address', 'article', 'aside', 'blockquote', 'body',
                    'canvas', 'center', 'dd', 'dir', 'div', 'dl', 'dt',
                    'fieldset', 'figcaption', 'figure', 'footer', 'form',
                    'frame', 'frameset', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
                    'header', 'hgroup', 'hr', 'html', 'li', 'main', 'menu',
                    'nav', 'noframes', 'noscript', 'ol', 'output', 'p',
                    'pre', 'section', 'table', 'tfoot', 'ul', 'video',
-                   'caption', 'tbody', 'thead']
+                   'caption', 'tbody', 'thead')
 
     if element.text:
         text += element.text
@@ -390,6 +390,115 @@ def get_text(element):
         text = ' ' + text + ' '
 
     return text
+
+
+def get_html_metas(etree, dictionary):
+    """Get name values and content values from HTML meta elements."""
+    assert isinstance(dictionary, dict), (
+        'dictionary is not a dictionary: %r' % dictionary)
+
+    if etree.getroot() is None:
+        logging.error('No root in etree passed to get_html_metas()')
+        return {}
+
+    for meta in etree.xpath("//meta"):
+        attribs = meta.attrib
+        if 'name' in attribs and 'content' in attribs:
+            dictionary[attribs.get('name').lower().strip()] = (
+                normalize_whitespace(attribs.get('content')))
+
+    return dictionary
+
+
+def get_html_lang(etree, dictionary):
+    """Get list of explicit lang and xml:lang values from all HTML elements."""
+    assert isinstance(dictionary, dict), (
+        'dictionary is not a dictionary: %r' % dictionary)
+
+    if etree.getroot() is None:
+        logging.error('No root in etree passed to get_html_lang()')
+        return {}
+
+    lang_attributes = ('string(//*/@lang)', 'string(//*/@xml:lang)')
+    lang_list = []
+    for xpath in lang_attributes:
+        lang = etree.xpath(xpath)
+        lang_list.append(lang)
+    dictionary['lang'] = ' '.join(lang_list)
+    dictionary['lang'] = dictionary['lang'].replace('_', '-')
+    dictionary['lang'] = normalize_whitespace(dictionary['lang'])
+    if not dictionary['lang']:
+        dictionary['lang'] = 'en'
+
+    return dictionary
+
+
+def get_html_title(etree, dictionary, section_numbering_characters):
+    """Get title from HTML document."""
+    assert isinstance(dictionary, dict), (
+        'dictionary is not a dictionary: %r' % dictionary)
+
+    if etree.getroot() is None:
+        logging.error('No root in etree passed to get_html_title()')
+        return {}
+
+    titles = etree.xpath("//title")
+    if titles:
+        dictionary['title'] = get_text(titles[0])
+        dictionary['title'] = normalize_whitespace(dictionary['title'])
+        dictionary['title'] = trim_prefix(dictionary['title'], 'Chapter')
+        dictionary['title'] = dictionary['title'].lstrip(section_numbering_characters)
+
+    return dictionary
+
+
+def get_html_priority_text(etree, dictionary, section_numbering_characters):
+    """Get important text from HTML document."""
+    assert isinstance(dictionary, dict), (
+        'dictionary is not a dictionary: %r' % dictionary)
+
+    if etree.getroot() is None:
+        logging.error('No root in etree passed to get_html_priority_text()')
+        return {}
+
+    priority_content = ('//h1', '//h2', '//h3', '//h4', '//h5', '//h6',
+                        '//title', '//caption', '//figcaption')
+    priority_text_list = []
+    for xpath in priority_content:
+        for elem in etree.xpath(xpath):
+            if isinstance(elem, lxml.html.HtmlElement):
+                p_text = get_text(elem)
+                p_text = p_text.lstrip(section_numbering_characters)
+                priority_text_list.append(p_text)
+    if 'description' in dictionary:
+        priority_text_list.append(dictionary['description'])
+    if 'keywords' in dictionary:
+        priority_text_list.append(dictionary['keywords'])
+    priority_text = ' '.join(priority_text_list)
+    priority_text = normalize_whitespace(priority_text)
+    dictionary['ptext'] = priority_text
+
+    return dictionary
+
+
+def get_html_text(etree, dictionary):
+    """Get text from HTML document."""
+    assert isinstance(dictionary, dict), (
+        'dictionary is not a dictionary: %r' % dictionary)
+
+    if etree.getroot() is None:
+        logging.error('No root in etree passed to get_html_text()')
+        return {}
+
+    content = etree.xpath("/html/body/div[@id='content']")
+    if content:
+        dictionary['text'] = get_text(content[0])
+    else:
+        dictionary['text'] = get_text(etree.getroot())
+    dictionary['text'] = normalize_whitespace(dictionary['text'])
+    dictionary['text'] = trim_suffix(dictionary['text'], ' Legal notices')
+
+    return dictionary
 
 
 def html_to_json(html_path, path_prefix=''):
@@ -408,50 +517,23 @@ def html_to_json(html_path, path_prefix=''):
         logging.error('No root: ' + html_path)
         return {}
 
-    # Process meta elements
-    for meta in etree.xpath("//meta"):
-        attribs = meta.attrib
-        if 'name' in attribs and 'content' in attribs:
-            dictionary[attribs.get('name').lower().strip()] = (
-                normalize_whitespace(attribs.get('content')))
+    # Get meta element values
+    get_html_metas(etree, dictionary)
+
+    # Get page languages
+    get_html_lang(etree, dictionary)
 
     # Get page title
-    titles = etree.xpath("//title")
-    if titles:
-        dictionary['title'] = get_text(titles[0])
-        dictionary['title'] = normalize_whitespace(dictionary['title'])
-        dictionary['title'] = trim_prefix(dictionary['title'], 'Chapter')
-        dictionary['title'] = dictionary['title'].lstrip(section_numbering_characters)
-    else:
+    get_html_title(etree, dictionary, section_numbering_characters)
+    if 'title' not in dictionary:
         logging.error('No title: ' + html_path)
 
     # Get text from areas representing priority content
     # Matches in this content should cause the document to rank higher
-    priority_content = ['//h1', '//h2', '//h3', '//h4', '//h5', '//h6',
-                        '//title', "//caption", "//figcaption"]
-    priority_text_list = []
-    for xpath in priority_content:
-        for elem in etree.xpath(xpath):
-            if isinstance(elem, lxml.html.HtmlElement):
-                p_text = get_text(elem)
-                p_text = p_text.lstrip(section_numbering_characters)
-                priority_text_list.append(p_text)
-    if 'description' in dictionary:
-        priority_text_list.append(dictionary['description'])
-    if 'keywords' in dictionary:
-        priority_text_list.append(dictionary['keywords'])
-    priority_text = ' '.join(priority_text_list)
-    priority_text = normalize_whitespace(priority_text)
-    dictionary['ptext'] = priority_text
+    get_html_priority_text(etree, dictionary, section_numbering_characters)
 
     # Get page content
-    content = etree.xpath("/html/body/div[@id='content']")
-    if content:
-        dictionary['text'] = get_text(content[0])
-    else:
-        dictionary['text'] = get_text(etree.getroot())
-    dictionary['text'] = normalize_whitespace(dictionary['text'])
-    dictionary['text'] = trim_suffix(dictionary['text'], ' Legal notices')
+    get_html_text(etree, dictionary)
 
     # Convert file system path to URL syntax
     dictionary['url'] = trim_prefix(html_path, path_prefix)
