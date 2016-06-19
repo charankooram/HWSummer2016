@@ -72,7 +72,8 @@ def mirror_dirs(src_dir, dest_dir):
 
             pydict['stream_size'] = os.path.getsize(src_path)
             pydict['date'] = get_datetime(src_path)
-            pydict['x_parsed_by'] = ('com.hortonworks.techpubs.' + __file__ +
+            pydict['x_parsed_by'] = ('com.hortonworks.techpubs.' +
+                                     os.path.basename(__file__) +
                                      ', v' + __version__)
 
             # Write JSON as UTF-8
@@ -410,7 +411,7 @@ def get_text(element):
 
     if element.tag in html_blocks:
         return ' {0} '.format(''.join(text))
-    else
+    else:
         return ''.join(text)
 
 
