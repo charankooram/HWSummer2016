@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Create JSON from a directory of HTML and text for later insertion into Solr
+"""Create Solr JSON from a directory of HTML and text files
 
 Takes about 75 minutes to run on docs.hortonworks.com content.
 
@@ -18,6 +18,8 @@ Use tar.bz2 to compress the resulting JSON:
     -rw-r--r--  1 rcrews  staff   192M Jun 11 11:13 docs.hortonworks.com-json.zip
 """
 
+__version__ = '0.0.6'
+
 import argparse
 import codecs
 import json
@@ -27,8 +29,6 @@ import re
 import time
 import urllib.parse
 import lxml.html
-
-__version__ = '0.0.6'
 
 
 def mirror_dirs(src_dir, dest_dir):
@@ -373,12 +373,12 @@ def get_datetime(path):
         'path is not a string: %r' % path)
     since_epoch = os.path.getmtime(path)
     utc_time = time.gmtime(since_epoch)
-    datetime = time.strftime('%Y-%m-%dT%H:%M:%S', utc_time)
+    datetime = time.strftime('%Y-%m-%dT%H:%M:%SZ', utc_time)
     return datetime
 
 
 def get_text(element):
-    """Gets text from elements, especially the text after child elements (tails)."""
+    """Get text from HTML elements, even text after child elements (tails)."""
 
     if (not isinstance(element, lxml.html.HtmlElement) and
             not isinstance(element, lxml.html.FormElement) and
@@ -404,7 +404,7 @@ def get_text(element):
         text.append(element.text)
 
     for child in element.iterchildren():
-        text.append(get_text(child)) # recurse
+        text.append(get_text(child))  # recurse
 
     if element.tail:
         text.append(element.tail)
@@ -589,10 +589,10 @@ if __name__ == '__main__':
     # authority (e.g., the domain, i.e., docs.hortonworks.com) in
     # JavaScript when reading the JSON
     if ARGS.in_dir.endswith('/'):
-        ARGS.in_dir = ARGS.in_dir[:-1] # Remove last character
+        ARGS.in_dir = ARGS.in_dir[:-1]  # Remove last character
 
     # https://docs.python.org/3/library/logging.html#levels
-    ARGS.verbosity *= 10 # debug, info, warning, error, critical
+    ARGS.verbosity *= 10  # debug, info, warning, error, critical
 
     # Set up logging
     # To monitor progress, tail the log file or use /usr/bin/less in F mode

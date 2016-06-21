@@ -17,14 +17,14 @@ For convenience:
         python -m json.tool facets.json facets-pretty.json
 """
 
+__version__ = '0.0.1'
+
 import argparse
 import codecs
 import collections
 import json
 import logging
 import os
-
-__version__ = '0.0.1'
 
 
 def get_jsons(src_dir, facet):
