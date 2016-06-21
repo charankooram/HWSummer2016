@@ -1,6 +1,6 @@
 /* .. start with all the global variables here...*/
-/*global window console */ /* For JSLint */
-var url = "http://localhost:8983/solr/feds/query?q=";
+
+var url = "http://localhost:8983/solr/bianca/query?q=";
 var pageArray = [];
 console.log("At the beginning page set is:" + pageArray.toString());
 var current = 0;
@@ -13,6 +13,10 @@ function createRequest() {
         result = new XMLHttpRequest();
     }
     return result;
+}
+
+function printArray(element,index,array){
+     console.log('current value in the page array is :'+element);   
 }
 
 var req = createRequest();
@@ -41,6 +45,8 @@ function addnewCursorMarker(newCursorMarker) {
     console.log("At the beginning page after this function :" + pageArray.toString());
 }
 
+
+
 function onGettingResponse() {
     "use strict";
     console.log("Ready state is:" + req.readyState);
@@ -57,25 +63,26 @@ function onGettingResponse() {
         console.log(Data.nextCursorMark);
         var urlstring;
         var textmaterial;
-
-        /*for (i = 0; i < Data.response.docs.length; i += 1) {
-            urlstring = "http://docs.hortonworks.com/HDPDocuments" +
-                    Data.response.docs[i].url;
-            var textmaterial = Data.response.docs[i].text;
-            out += "<a href=" + urlstring + ">" + Data.response.docs[i].title +
-                    "</a><br />" + urlstring + "<br />" + "<p>" +
-                    textmaterial.toString().substring(0, 400) + trailingdots +
-                    "</p><br / >";
-        }*/
-
+        
+      
+        
         Data.response.docs.forEach(function AddToHTML(value) {
+            console.log('The url of this file is :'+value.url);
             urlstring = "http://docs.hortonworks.com/HDPDocuments" +
-                    value.url;
+                         value.url;
             textmaterial = value.text;
-            out += "<a href=" + urlstring + ">" + value.title +
+            if(textmaterial === undefined){
+               out += "<a href=" + urlstring + ">" + value.title +
+                    "</a><br />" + urlstring + "<br />" + "<p>" +
+                     
+                    "</p><br / >"; 
+            }else{
+                out += "<a href=" + urlstring + ">" + value.title +
                     "</a><br />" + urlstring + "<br />" + "<p>" +
                     textmaterial.toString().substring(0, 400) + trailingdots +
-                    "</p><br / >";
+                    "</p><br / >"; 
+            }
+            
         });
 
         nextCursorMarker = Data.nextCursorMark;
@@ -86,6 +93,7 @@ function onGettingResponse() {
 
 req.onreadystatechange = onGettingResponse;
 
+
 function UponSubmit() {
     "use strict";
       
@@ -93,7 +101,9 @@ function UponSubmit() {
     url = url + textContent + "&sort=id+asc&cursorMark=";
     pageArray.push("*");
     new GetResponse(url, pageArray[current]);
-    console.log("pageset after submitting :" + pageArray.toString());
+    //console.log("pageset after submitting :" + pageArray.toString());
+    pageArray.forEach(printArray);
+    
 }
 
 function UponNext() {
@@ -104,7 +114,8 @@ function UponNext() {
     }
     current += 1;
     new GetResponse(url, pageArray[current]);
-    console.log("pageset after hitting next :" + pageArray.toString());
+    //console.log("pageset after hitting next :" + pageArray.toString());
+    pageArray.forEach(printArray);
 }
 
 function UponPrev() {
