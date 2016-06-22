@@ -74,11 +74,16 @@ function onGettingResponse() {
             if(textmaterial === undefined){
                out += "<a href=" + urlstring + ">" + value.title +
                     "</a><br />" + urlstring + "<br />" + "<p>" +
-                     
+                   
                     "</p><br / >"; 
             }else{
-                out += "<a href=" + urlstring + ">" + value.title +
-                    "</a><br />" + urlstring + "<br />" + "<p>" +
+                 out += "<a href=" + urlstring + ">" + value.title +
+                    "</a><br />" + urlstring + "<br />" + 
+                    "<br/> " +  
+                    "Product : "+value.product+"<br />" +
+                    "Release :"+value.release+"<br />" +
+                    "BookTitle :"+value.booktitle+"<br />" +
+                    "<p>" +
                     textmaterial.toString().substring(0, 400) + trailingdots +
                     "</p><br / >"; 
             }
