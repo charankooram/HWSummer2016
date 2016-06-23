@@ -4,7 +4,9 @@
     <meta charset="utf-8" />
     <title>Search Webapp</title>
     <link rel="stylesheet" href="solr-search.css" />
+    <link rel="stylesheet" href="awesomplete.css" />
     <script src="solr-search.js"></script>
+    <script src="awesomplete.js" async></script>
   </head>
   <body>
     <h1>Search Webapp </h1>
@@ -17,9 +19,10 @@
         <input type="button" value="NEXT" onclick="UponNext()" />
         <br />
         <br />
-        <input type="text" name="productGrab" id="productGrab" /><br/>
-        <input type="text" name="releaseGrab" id="releaseGrab" /><br/>
-        <input type="text" name="bktitleGrab" id="bktitleGrab" /><br/>
+        <input type="text" name="productGrab" id="productGrab" disabled="true" placeholder="product..."/><br/>
+        <input type="text" name="releaseGrab" id="releaseGrab" disabled="true" placeholder="release..."/><br/>
+        <input type="text" name="bktitleGrab" id="bktitleGrab" disabled="true" placeholder="booktitle..."/><br/>
+        <input type="button" value="FILTER" onclick="UponFilter()" />
         <br/>
         <div id="Facets"><div>
         <br />
