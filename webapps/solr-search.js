@@ -22,8 +22,11 @@ window.onload = function(){
     var irelease = document.getElementById("releaseGrab");
     var ibooktitle = document.getElementById("bktitleGrab");
     productComplete = new Awesomplete(iproduct);
+    productComplete.minChars = 1;
     releaseComplete = new Awesomplete(irelease);
+    releaseComplete.minChars = 1;
     bkComplete = new Awesomplete(ibooktitle);
+    bkComplete.minChars = 1;
     GetResponse(initURL);
     
 }
