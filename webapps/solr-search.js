@@ -11,7 +11,10 @@ var pageArray = [];
 console.log("At the beginning page set is:" + pageArray.toString());
 var current = 0;
 var nextCursorMarker = null;
-var display = false;
+var fq1 = null;
+var fq2 = null;
+var fq3 = null;
+var display = false; // For the initURL call to grab facets but not display *:* content
 var productComplete = null;
 var releaseComplete = null;
 var bkComplete = null;
@@ -53,39 +56,13 @@ function onGettingResponse() {
     "use strict";
     console.log("Ready state is:" + req.readyState);
     console.log("Ready status:" + req.status);
-
     if (req.readyState === 4) {
         var Data = JSON.parse(req.responseText);
-        //var out = "";
-       // var facets = "";
-        //var trailingdots = "....";
         console.log(Data.response);
         console.log(Data.responseHeader);
         console.log(Data.nextCursorMark);
-       // var urlstring;
-       // var textmaterial;
-        
-       /* Data.response.docs.forEach(function AddToHTML(value) {
-            console.log('The url of this file is :'+value.url);
-            urlstring = "http://docs.hortonworks.com/HDPDocuments" +
-                         value.url;
-            textmaterial = value.text;
-            if(textmaterial === undefined){
-               out += "<a href=" + urlstring + ">" + value.title +
-                    "</a><br />" + urlstring + "<br />" + "<p>" +
-                     
-                    "</p><br / >"; 
-            }else{
-                out += "<a href=" + urlstring + ">" + value.title +
-                    "</a><br />" + urlstring + "<br />" + "<p>" +
-                    textmaterial.toString().substring(0, 400) + trailingdots +
-                    "</p><br / >"; 
-            }
-            
-        }); */
-        
         var out = GetIncoming(Data);
-        var facets = GetFacets(Data);
+        if(facet!=false) var facets = GetFacets(Data);
         nextCursorMarker = Data.nextCursorMark;
         addnewCursorMarker(nextCursorMarker);
         if(display == true){
@@ -129,26 +106,41 @@ function GetIncoming(Data){
                     "</p><br / >"; 
         }else{
             out += "<a href=" + urlstring + ">" + value.title +
-                    "</a><br />" + urlstring + "<br />" + "<p>" +
-                    textmaterial.toString().substring(0, 400) + trailingdots +
+                    "</a><br />" + urlstring + "<br />" +
+                    "<br />"+
+                    "Product :"+value.product+"<br />"+
+                    "Release :"+value.release+"<br />"+
+                    "BookTitle :"+value.booktitle+ "<br />"+
+                    "<br />"+ "<p>"
+                     textmaterial.toString().substring(0, 400) + trailingdots +
                     "</p><br / >"; 
         }
     });
     return out;
 }
 
+ /*
+ * Grabs the query text and performs a search.
+ * Should it clear the pagearray before pushing the * ?
+ * Clears all the filter textfields.
+ * Hence set all the filter query parameters to null.
+ * Turn off facet.
+ */
 function UponSubmit() {
     "use strict";
-    q = document.querySelector("#q").value;
-    //url = url + textContent + "&sort=id+asc&cursorMark=";
+    document.getElementById("productGrab").placeholder="product...";
+    document.getElementById("releaseGrab").placeholder="release...";
+    document.getElementById("bktitleGrab").placeholder="booktitle...";
+    q = document.querySelector("#q").value; // Grab the query text...
+    fq1 = null;
+    fq2 = null;
+    fq3 = null;
     pageArray.push("*");
     cursorMark="*";
-    var url = MakeUrl(baseurl,q,rows,sort,cursorMark,facet,facetfield);
+    facet = false;
+    var url = MakeUrl(baseurl,q,rows,sort,cursorMark,facet,facetfield,fq1,fq2,fq3);
     new GetResponse(url);
-    //console.log("pageset after submitting :" + pageArray.toString());
     pageArray.forEach(printArray);
-    document.getElementById("productGrab").disabled = false;
-    document.getElementById("productGrab").placeholder="";
     
 }
 
@@ -160,7 +152,7 @@ function UponNext() {
     }
     current += 1;
     cursorMark = pageArray[current];
-    var url = MakeUrl(baseurl,q,rows,sort,cursorMark,facet,facetfield);
+    var url = MakeUrl(baseurl,q,rows,sort,cursorMark,facet,facetfield,fq1,fq2,fq3);
     new GetResponse(url);
     //console.log("pageset after hitting next :" + pageArray.toString());
     pageArray.forEach(printArray);
@@ -174,9 +166,42 @@ function UponPrev() {
     }
     current -= 1;
     cursorMark = pageArray[current];
-    var url = MakeUrl(baseurl,q,rows,sort,cursorMark,facet,facetfield);
+    var url = MakeUrl(baseurl,q,rows,sort,cursorMark,facet,facetfield,fq1,fq2,fq3);
     new GetResponse(url);
     console.log("page set after hitting prev :" + pageArray.toString());
+}
+
+/*
+ * Check what filters are active from the user.
+ * set those appropriate filter queries to those values grabbed
+ * Make another URL.
+ * Send Request.
+ */
+function UponFilter(){
+   /* The order of the facets is always consistent : Product -> Release -> BookTitle */
+    var productGrabbed = document.getElementById("productGrab").value;
+    var releaseGrabbed = document.getElementById("releaseGrab").value;
+    var bktitleGrabbed = document.getElementById("bktitleGrab").value;
+    
+    if(productGrabbed != ''){
+        fq1 = productGrabbed;
+    }else{
+        fq1 = null;
+    }
+    
+    if(releaseGrabbed != ''){
+        fq2 = releaseGrabbed;
+    }else{
+        fq2 = null;
+    }
+    
+    if(bktitleGrabbed != ''){
+        fq3 = bktitleGrabbed;
+    }else{
+        fq3 = null;
+    }
+    var urlToUse = MakeUrl(baseurl,q,rows,sort,cursorMark,facet,facetfield,fq1,fq2,fq3);
+    GetResponse(urlToUse);
 }
 
 function printArray(element,index,array){
@@ -199,8 +224,19 @@ function addnewCursorMarker(newCursorMarker) {
     console.log("At the beginning page after this function :" + pageArray.toString());
 }
 
-function MakeUrl(baseurl,q,rows,sort,cursorMark,facet,facetfield){
-    return baseurl+"q="+q+"&rows="+rows+"&sort="+sort+"&cursorMark="+cursorMark+"&facet="+facet+"&facet.field="+facetfield;
+function MakeUrl(baseurl,q,rows,sort,cursorMark,facet,facetfield,fq1,fq2,fq3){
+    var url = baseurl+"q="+q+"&rows="+rows+"&sort="+sort+"&cursorMark="+cursorMark+"&facet="+facet+"&facet.field="+facetfield;
+    if(fq1 != null){
+        url = url + "&fq=product:"+fq1;
+    }
+    if(fq2 != null){
+        url = url + "&fq=release:"+fq2;
+    }
+    if(fq3 != null){
+        url = url + "&fq=booktitle:"+fq3;
+    }
+    return url;
+   
 }
 
 function loadAutoCompletes(Data){
@@ -219,12 +255,13 @@ function loadAutoCompletes(Data){
            rautoarray[index/2] = element; 
         }
     });
-    releaseComplete.list = pautoarray;
+    releaseComplete.list = rautoarray;
     
     Data.facet_counts.facet_fields.booktitle.forEach(function readbooktitle(element,index,array){
         if(index%2 == 0){
            bautoarray[index/2] = element; 
         }
     });
-    bkComplete.list = pautoarray;
+    bkComplete.list = bautoarray;
 }
+
