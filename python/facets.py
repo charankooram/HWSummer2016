@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Create JSON from a directory of HTML and text for later insertion into Solr
+"""Create JSON for Solr from a directory of HTML and text
 
 Takes 2-15 minutes to run on docs.hortonworks.com content.
 Resulting file is about 23 KB.
@@ -9,12 +9,9 @@ For usage, run:
 
 Questions: Robert Crews <rcrews@hortonworks.com>
 
-When complete, the resulting file can be pretty-printed by running this command:
+When complete, the resulting file can be pretty-printed by running this
+command:
     python -m json.tool facets.json facets-pretty.json
-
-For convenience:
-    time ~/Sandbox/HWSummer2016/python/facets.py docs.hortonworks.com-json && \
-        python -m json.tool facets.json facets-pretty.json
 """
 
 __version__ = '0.0.1'
@@ -28,7 +25,9 @@ import os
 
 
 def get_jsons(src_dir, facet):
-    """Recurse src_dir to parse JSON files for product, release, and title data."""
+    """Recurse src_dir to parse JSON files for product, release, and
+    title data.
+    """
     assert isinstance(src_dir, str), (
         'src_dir is not a string: %r' % src_dir)
     assert isinstance(facet, dict), (
@@ -221,14 +220,15 @@ def booktitle_lookup(abbr):
 
 
 def make_dict():
-    """Quickly make nested dictionaries in Python.
-    http://stackoverflow.com/questions/635483/what-is-the-best-way-to-implement-nested-dictionaries-in-python
-    """
+    """Quickly make nested dictionaries in Python."""
+    # http://stackoverflow.com/questions/635483/what-is-the-best-way-to-implement-nested-dictionaries-in-python
     return collections.defaultdict(make_dict)
 
 
 def process(src_dir, dest_file):
-    """Set up JSON struct, delegate its creation, then write the JSON file to disk."""
+    """Set up JSON struct, delegate its creation, then write the JSON
+    file to disk.
+    """
     assert isinstance(src_dir, str), (
         'src_dir is not a string: %r' % src_dir)
     assert isinstance(dest_file, str), (

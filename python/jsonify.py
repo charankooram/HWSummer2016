@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Create Solr JSON from a directory of HTML and text files
+"""Create Solr JSON from a directory of HTML and text files.
 
 Takes about 75 minutes to run on docs.hortonworks.com content.
 
@@ -9,16 +9,8 @@ For usage, run:
 Questions: Robert Crews <rcrews@hortonworks.com>
 
 Use tar.bz2 to compress the resulting JSON:
-    $ du -sh docs.hortonworks.com-json && \
-      tar cfy docs.hortonworks.com-json.tar.bz2 docs.hortonworks.com-json && \
-      zip -qDXr docs.hortonworks.com-json.zip docs.hortonworks.com-json && \
-      ls -lh *-json.*
-    853M	docs.hortonworks.com-json
-    -rw-r--r--  1 rcrews  staff    50M Jun 11 11:13 docs.hortonworks.com-json.tar.bz2
-    -rw-r--r--  1 rcrews  staff   192M Jun 11 11:13 docs.hortonworks.com-json.zip
+    $ tar cfy docs.hortonworks.com-json.tar.bz2 docs.hortonworks.com-json
 """
-
-__version__ = '0.0.6'
 
 import argparse
 import codecs
@@ -30,9 +22,17 @@ import time
 import urllib.parse
 import lxml.html
 
+__version__ = '0.0.6'
 
-def mirror_dirs(src_dir, dest_dir):
-    """Recurse src_dir to mirror text and HTML files in dest_dir as JSON files."""
+
+def mirror_dirs(src_dir: str, dest_dir: str) -> None:
+    """Recurse src_dir to mirror text and HTML files in dest_dir as JSON
+    files.
+
+    Args:
+        src_dir  Directory containing text and HTML files.
+        dest_dir  Nonexistant directory where JSON files will be written.
+    """
     assert isinstance(src_dir, str), (
         'src_dir is not a string: %r' % src_dir)
     assert isinstance(dest_dir, str), (
@@ -66,23 +66,32 @@ def mirror_dirs(src_dir, dest_dir):
 
             # Use different parsers for files with different extensions
             if extension == '.txt':
-                pydict = text_to_json(src_path, ARGS.in_dir)
+                meta = text_to_json(src_path, ARGS.in_dir)
             else:
-                pydict = html_to_json(src_path, ARGS.in_dir)
+                meta = html_to_json(src_path, ARGS.in_dir)
 
-            pydict['stream_size'] = os.path.getsize(src_path)
-            pydict['date'] = get_datetime(src_path)
-            pydict['x_parsed_by'] = ('com.hortonworks.techpubs.' +
+            meta['stream_size'] = os.path.getsize(src_path)
+            meta['date'] = get_datetime(src_path)
+            meta['x_parsed_by'] = ('com.hortonworks.docs.' +
                                      os.path.basename(__file__) +
                                      ', v' + __version__)
 
             # Write JSON as UTF-8
             with codecs.open(dest_path, mode='w', encoding='UTF-8') as file_handle:
-                json.dump(pydict, file_handle, ensure_ascii=False)
+                json.dump(meta, file_handle, ensure_ascii=False)
 
 
-def text_to_json(text_file, path_prefix=''):
-    """Parse text and return a dictionary that can be converted to a JSON file."""
+def text_to_json(text_file: str, path_prefix: str='') -> dict:
+    """Parse text and return a dictionary that can be converted to a JSON
+    file.
+
+    Args:
+        text_file  Path to a text file.
+        path_prefix  String to remove from front of URL written to JSON.
+
+    Returns:
+        A dictionary of metadata gathered from the file path.
+    """
     assert isinstance(text_file, str), (
         'html_path is not a string: %r' % text_file)
     assert isinstance(path_prefix, str), (
@@ -103,16 +112,24 @@ def text_to_json(text_file, path_prefix=''):
     # After compressing whitespace, take all the content of the file for indexing
     text = normalize_whitespace(content)
 
-    dictionary = {'url': url, 'title': title, 'text': text}
+    meta = {'url': url, 'title': title, 'text': text}
 
     # Update dictionary with metadata from the file path
-    dictionary.update(parse_path(text_file))
+    meta.update(parse_path(text_file))
 
-    return dictionary
+    return meta
 
 
-def normalize_whitespace(text):
-    """Collapses whitespace runs to a single space, trims leading and trailing spaces."""
+def normalize_whitespace(text: str) -> str:
+    """Collapses whitespace to a single spaces, trims leading and trailing
+    spaces.
+
+    Args:
+        text  Text from which whitespace will be removed.
+
+    Returns:
+        Text with whitespace removed.
+    """
     assert isinstance(text, str), (
         'text is not a string: %r' % text)
     text = re.sub(r'\s+', ' ', text)
@@ -120,8 +137,16 @@ def normalize_whitespace(text):
     return text
 
 
-def trim_prefix(original, prefix):
-    """Remove prefix from string."""
+def trim_prefix(original: str, prefix: str) -> str:
+    """Remove prefix from string.
+
+    Args:
+        original  The original string.
+        prefix  The string to remove from the original string.
+
+    Returns:
+        String with prefix removed, or the original string.
+    """
     assert isinstance(original, str), (
         'original is not a string: %r' % original)
     assert isinstance(prefix, str), (
@@ -132,8 +157,16 @@ def trim_prefix(original, prefix):
         return original
 
 
-def trim_suffix(original, suffix):
-    """Remove suffix from string."""
+def trim_suffix(original: str, suffix: str) -> str:
+    """Remove suffix from string.
+
+    Args:
+        original  The original string.
+        suffix  The string to remove from the original string.
+
+    Returns:
+        String with suffix removed, or the original string.
+    """
     assert isinstance(original, str), (
         'original is not a string: %r' % original)
     assert isinstance(suffix, str), (
@@ -144,8 +177,16 @@ def trim_suffix(original, suffix):
         return original
 
 
-def standardize_release(relnum):
-    """Assure all release numbers have four parts, by appending zeros if necessary"""
+def standardize_release(relnum: str) -> str:
+    """Assure all release numbers have four parts, by appending dots
+    and zeros if necessary.
+
+    Args:
+        relnum  A string. Ideally digits and dots, such as "1.1".
+
+    Returns:
+        A string with three period characters, such as "1.1.0.0".
+    """
     assert isinstance(relnum, str), (
         'relnum is not a string: %r' % relnum)
     parts = relnum.split('.')
@@ -154,8 +195,17 @@ def standardize_release(relnum):
     return '.'.join(parts)
 
 
-def standardize_product(abbrev):
-    """Use best product names"""
+def standardize_product(abbrev: str) -> str:
+    """Convert common product abbreviations to official product names.
+
+    Args:
+        abbrev  A known abbreviation of Hortonworks product names:
+                HDP, HDP-Win, HDF, SS, Cldbrk, etc.
+
+    Returns:
+        A product name better suited for customer visibility, or the
+        original string.
+    """
     assert isinstance(abbrev, str), (
         'abbrev is not a string: %r' % abbrev)
     if abbrev.startswith('HDP'):
@@ -171,112 +221,356 @@ def standardize_product(abbrev):
     return abbrev
 
 
-def std_path(match):
-    """Get product, version, and book title from path, where possible"""
+def standardize_booktitle(abbr: str) -> str:
+    """Convert book title abbreviations to fuller book titles.
+
+    Args:
+        abbr  A common abbreviation for a book title.
+
+    Returns:
+        The best full title for display.
+    """
+    assert isinstance(abbr, str), (
+        'abbr is not a string: %r' % abbr)
+
+    booktitles = {
+        "About_Hortonworks_Data_Platform": 'Hortonworks Data Platform Getting Started',
+        "AdminGuide": 'Hortonworks DataFlow Administrator Guide',
+        "Amb_Rel_Notes": 'Hortonworks Data Platform Apache Ambari Release Notes',
+        "Ambari_Admin_Guide": 'Hortonworks Data Platform Apache Ambari Administrator Guide',
+        "Ambari_Admin_v170": 'Hortonworks Data Platform Apache Ambari Administrator Guide',
+        "Ambari_Doc_Suite": 'Hortonworks Data Platform Apache Ambari Documentation',
+        "Ambari_Install_v170": 'Hortonworks Data Platform Apache Ambari Installation Guide',
+        "Ambari_Ref_Guide_v170": 'Hortonworks Data Platform Apache Ambari Reference', # ?
+        "Ambari_Reference_Guide_v170": 'Hortonworks Data Platform Apache Ambari Reference', # ?
+        "ambari_reference_guide": 'Hortonworks Data Platform Apache Ambari Reference',
+        "ambari_reference": 'Hortonworks Data Platform Apache Ambari Reference',
+        "Ambari_RelNotes_v170": 'Hortonworks Data Platform Apache Ambari Release Notes',
+        "Ambari_RelNotes_v20": 'Hortonworks Data Platform Apache Ambari Release Notes',
+        "Ambari_Security_Guide": 'Hortonworks Data Platform Apache Ambari Security Guide',
+        "Ambari_Security_v170": 'Hortonworks Data Platform Apache Ambari Security Guide',
+        "ambari_security": 'Hortonworks Data Platform Apache Ambari Security Guide',
+        "Ambari_Trblshooting_v170": 'Hortonworks Data Platform Apache Ambari Troubleshooting Guide',
+        "ambari_troubleshooting": 'Hortonworks Data Platform Apache Ambari Troubleshooting Guide',
+        "Ambari_Upgrade_v170": 'Hortonworks Data Platform Apache Ambari Upgrade Guide',
+        "Ambari_User_v170": 'Hortonworks Data Platform Apache Ambari User Guide',
+        "Ambari_Users_Guide": 'Hortonworks Data Platform Apache Ambari User Guide',
+        "ambari_views_guide": 'Hortonworks Data Platform Apache Ambari Views Guide',
+        "Appendix": 'Hortonworks Data Platform Port Configuration Guide',
+        "atlas-rest-api": 'Hortonworks Data Platform Apache Atlas REST API Reference',
+        "beeline": 'Hortonworks Data Platform Apache Hive Beeline Java API Reference',
+        "cldbrk_install": 'Hortonworks Cloudbreak Installation Guide',
+        "Clust_Plan_Gd_Win": 'Hortonworks Data Platform Cluster Planning Guide for Microsoft Windows',
+        "cluster-planning-guide": 'Hortonworks Data Platform Cluster Planning Guide',
+        "ClusterPlanningGuide": 'Hortonworks Data Platform Cluster Planning Guide',
+        "data_governance": 'Hortonworks Data Platform Data Governance Guide',
+        "Data_Integration_Services_With_HDP": 'Hortonworks Data Platform Data Integration Services Guide',
+        "data_movement": 'Hortonworks Data Platform Data Movement Guide',
+        "dataintegration": 'Hortonworks Data Platform Data Integration Services Guide',
+        "Deploying_Hortonworks_Data_Platform": 'Hortonworks Data Platform Deployment Guide',
+        "DeveloperGuide": 'Hortonworks DataFlow Developer Guide',
+        "ExpressionLanguageGuide": 'Hortonworks DataFlow Expression Language Guide',
+        "falcon_quickstart_guide": 'Hortonworks Data Platform Apache Falcon Quick Start',
+        "falcon": 'Hortonworks Data Platform Apache Falcon Guide',
+        "Flume": 'Hortonworks Data Platform Apache Flume Guide',
+        "getting-started-guide": 'Hortonworks Data Platform Getting Started',
+        "getting-started-win": 'Hortonworks Data Platform Getting Started for Microsoft Windows',
+        "GettingStartedGuide": 'Hortonworks Data Platform Getting Started',
+        "gsInstaller": 'Hortonworks Data Platform Getting Started',
+        "hadoop-ha": 'Hortonworks Data Platform High Availability Guide',
+        "Hadoop": 'Hortonworks Data Platform Apache Hadoop Guide',
+        "HAGuides": 'Hortonworks Data Platform High Availability Guide',
+        "hbase_java_api": 'Hortonworks Data Platform Apache HBase Java API Reference',
+        "hbase_snapshots_guide": 'Hortonworks Data Platform Apache HBase Snapshots Guide',
+        "HCatalog": 'Hortonworks Data Platform Apache HCatalog Guide',
+        "HDF_GettingStarted": 'Hortonworks DataFlow Getting Started',
+        "HDF_InstallSetup": 'Hortonworks DataFlow Installation and Setup Guide',
+        "HDF_RelNotes": 'Hortonworks DataFlow Release Notes',
+        "HDF_Upgrade": 'Hortonworks DataFlow Upgrade Guide',
+        "hdfs_admin_tools": 'Hortonworks Data Platform Administration Tools Guide',
+        "hdfs_nfs_gateway": 'Hortonworks Data Platform HDFS NFS Gateway Guide',
+        "HDP_HA": 'Hortonworks Data Platform High Availability Guide',
+        "HDP_Install_Upgrade_Win": 'Hortonworks Data Platform Installation and Upgrade Guide for Microsoft Windows',
+        "HDP_Install_Win": 'Hortonworks Data Platform Installation Guide for Microsoft Windows',
+        "HDP_Reference_Guide": 'Hortonworks Data Platform Reference Guide',
+        "HDP_RelNotes_Win": 'Hortonworks Data Platform Release Notes for Microsoft Windows',
+        "HDP_RelNotes": 'Hortonworks Data Platform Release Notes',
+        "hdp_search": 'Hortonworks Data Platform Search Solutions Guide',
+        "HDP_Upgrade_Win": 'Hortonworks Data Platform Upgrade Guide for Microsoft Windows',
+        "hdp1-system-admin-guide": 'Hortonworks Data Platform Administrator Guide',
+        "HDPSecure_Admin": 'Hortonworks Data Platform Secure Administration Guide',
+        "High_Availability_Guides": 'Hortonworks Data Platform High Availability Guide',
+        "hive_javadocs": 'Hortonworks Data Platform Apache Hive Java API Reference',
+        "Hive": 'Hortonworks Data Platform Apache Hive Guide',
+        "HortonworksConnectorForTeradata": 'Hortonworks Data Platform Terradata Connection Guide',
+        "importing_data_into_hbase_guide": 'Hortonworks Data Platform Apache HBase Data Importing Guide',
+        "Installing_HDP_AMB": 'Hortonworks Data Platform Apache Ambari Installation Guide',
+        "installing_hdp_for_windows": 'Hortonworks Data Platform Installation Guide for Microsoft Windows',
+        "installing_manually_book": 'Hortonworks Data Platform Manual Installation Guide',
+        "kafka-guide": 'Hortonworks Data Platform Apache Kafka Guide',
+        "kafka-user-guide": 'Hortonworks Data Platform Apache Kafka User Guide',
+        "Knox_Admin_Guide": 'Hortonworks Data Platform Apache Knox Gateway Administrator Guide',
+        "Knox_Gateway_Admin_Guide": 'Hortonworks Data Platform Apache Knox Gateway Administrator Guide',
+        "Monitoring_Hadoop_Book": 'Hortonworks Data Platform Apache Hadoop Monitoring Guide',
+        "Monitoring_HDP": 'Hortonworks Data Platform Apache Hadoop Monitoring Guide',
+        "Overview": 'Hortonworks DataFlow Overview',
+        "performance_tuning": 'Hortonworks Data Platform Performance Tuning Guide',
+        "Pig": 'Hortonworks Data Platform Apache Pig Guide',
+        "QuickStart_HDPWin": 'Hortonworks Data Platform Quick Start for Microsoft Windows',
+        "Ranger_Adding_New": 'Hortonworks Data Platform Apache Ranger Component Addition Guide',
+        "Ranger_Install_Guide": 'Hortonworks Data Platform Apache Ranger Installation Guide',
+        "Ranger_KMS_Admin_Guide": 'Hortonworks Data Platform Apache Ranger Key Management Administrator Guide',
+        "Ranger_User_Guide": 'Hortonworks Data Platform Apache Ranger User Guide',
+        "readme": 'Hortonworks Data Platform Readme',
+        "Reference": 'Hortonworks Data Platform Reference',
+        "reference": 'Hortonworks Data Platform Reference',
+        "releasenotes_ambari_1.5.0": 'Hortonworks Data Platform Apache Ambari Release Notes',
+        "releasenotes_ambari_1.5.1": 'Hortonworks Data Platform Apache Ambari Release Notes',
+        "releasenotes_ambari_1.6.0": 'Hortonworks Data Platform Apache Ambari Release Notes',
+        "releasenotes_ambari_1.6.1": 'Hortonworks Data Platform Apache Ambari Release Notes',
+        "releasenotes_ambari_2.0.0": 'Hortonworks Data Platform Apache Ambari Release Notes',
+        "releasenotes_ambari_2.0.1.0": 'Hortonworks Data Platform Apache Ambari Release Notes',
+        "releasenotes_ambari_2.0.2.0": 'Hortonworks Data Platform Apache Ambari Release Notes',
+        "releasenotes_ambari_2.1.0.0": 'Hortonworks Data Platform Apache Ambari Release Notes',
+        "releasenotes_ambari_2.1.1.0": 'Hortonworks Data Platform Apache Ambari Release Notes',
+        "releasenotes_ambari_2.1.2.0": 'Hortonworks Data Platform Apache Ambari Release Notes',
+        "releasenotes_ambari_2.1.2.1": 'Hortonworks Data Platform Apache Ambari Release Notes',
+        "releasenotes_ambari_2.2.0.0": 'Hortonworks Data Platform Apache Ambari Release Notes',
+        "releasenotes_ambari_2.2.1.0": 'Hortonworks Data Platform Apache Ambari Release Notes',
+        "releasenotes_ambari_2.2.1.1": 'Hortonworks Data Platform Apache Ambari Release Notes',
+        "releasenotes_ambari_2.2.2.0": 'Hortonworks Data Platform Apache Ambari Release Notes',
+        "releasenotes_ambari": 'Hortonworks Data Platform Apache Ambari Release Notes',
+        "releasenotes_hdp_1.x": 'Hortonworks Data Platform Release Notes',
+        "releasenotes_hdp_2.0": 'Hortonworks Data Platform Release Notes',
+        "releasenotes_hdp_2.1": 'Hortonworks Data Platform Release Notes',
+        "releasenotes_HDP-Win": 'Hortonworks Data Platform Release Notes for Microsoft Windows',
+        "rolling-upgrade": 'Hortonworks Data Platform Rolling Upgrade Guide',
+        "secure-kafka-ambari": 'Hortonworks Data Platform Apache Ambari Configuring Apache Kafka Guide',
+        "secure-storm-ambari": 'Hortonworks Data Platform Apache Ambari Configuring Apache Storm Guide',
+        "Security_Guide": 'Hortonworks Data Platform Security Guide',
+        "smartsense_admin": 'Hortonworks SmartSense Administrator Guide',
+        "spark-guide": 'Hortonworks Data Platform Apache Spark Guide',
+        "spark-quickstart": 'Hortonworks Data Platform Apache Spark Quick Start',
+        "Sqoop": 'Hortonworks Data Platform Apache Sqoop Guide',
+        "storm-user-guide": 'Hortonworks Data Platform Apache Spark User Guide',
+        "Sys_Admin_Guides": 'Hortonworks Data Platform Administrator Guide',
+        "sysadmin-guide": 'Hortonworks Data Platform Administrator Guide',
+        "system-admin-guide": 'Hortonworks Data Platform Administrator Guide',
+        "Templeton": 'Hortonworks Data Platform Apache Templeton Guide',
+        "upgrading_Ambari": 'Hortonworks Data Platform Apache Ambari Upgrade Guide',
+        "upgrading_hdp_manually": 'Hortonworks Data Platform Manual Upgrade Guide',
+        "user-guide": 'Hortonworks Data Platform User Guide',
+        "UserGuide": 'Hortonworks DataFlow User Guide',
+        "using_Ambari_book": 'Hortonworks Data Platform Apache Ambari User Guide',
+        "Using_Apache_FlumeNG": 'Hortonworks Data Platform Apache Flume NG User Guide',
+        "Using_WebHDFS_REST_API": 'Hortonworks Data Platform WebHDFS REST API Reference',
+        "using-apache-hadoop": 'Hortonworks Data Platform Apache Hadoop User Guide',
+        "webhdfs": 'Hortonworks Data Platform WebHDFS REST API Reference',
+        "whdata": 'Hortonworks Data Platform Documentation',
+        "whgdata": 'Hortonworks Data Platform Documentation',
+        "yarn_resource_mgt": 'Hortonworks Data Platform Apache YARN Resource Management Guide',
+    }
+
+    if abbr in booktitles:
+        abbr = booktitles[abbr]
+
+    return abbr
+
+
+def _std_path(match: 're.match') -> dict:
+    """Extract product, release, and booktitle from standard
+       docs.hortonworks URL paths.
+
+    Args:
+        match  A compiled re.match object.
+
+    Returns:
+        A dict containing product, release, and booktitle values.
+    """
     assert isinstance(match, type(re.match('', ''))), (
         'match is not a re.match: %r' % match)
-    metadata = {}
-    metadata['product'] = match.group('p')
-    metadata['release'] = match.group('r')
-    metadata['booktitle'] = match.group('b')
-    return metadata
+    meta = {}
+    meta['product'] = match.group('p')
+    meta['release'] = match.group('r')
+    meta['booktitle'] = match.group('b')
+    return meta
 
 
-def hdp_23_yj_path(match):
-    """Get product, version, and book title from path, where possible"""
+def _hdp_23_yj_path(match: 're.match') -> dict:
+    """Extract product, release, and booktitle from standard
+       docs.hortonworks URL paths.
+
+    Args:
+        match  A compiled re.match object.
+
+    Returns:
+        A dict containing product, release, and booktitle values.
+    """
     assert isinstance(match, type(re.match('', ''))), (
         'match is not a re.match: %r' % match)
-    metadata = {}
-    metadata['product'] = 'HDP'
-    metadata['release'] = '2.3.0.0-yj'
-    metadata['booktitle'] = match.group('b')
-    return metadata
+    meta = {}
+    meta['product'] = 'HDP'
+    meta['release'] = '2.3.0.0-yj'
+    meta['booktitle'] = match.group('b')
+    return meta
 
 
-def win_new_path(match):
-    """Get product, version, and book title from path, where possible"""
+def _win_new_path(match: 're.match') -> dict:
+    """Extract product, release, and booktitle from standard
+       docs.hortonworks URL paths.
+
+    Args:
+        match  A compiled re.match object.
+
+    Returns:
+        A dict containing product, release, and booktitle values.
+    """
     assert isinstance(match, type(re.match('', ''))), (
         'match is not a re.match: %r' % match)
-    metadata = {}
-    metadata['product'] = 'HDP-Win'
-    metadata['release'] = match.group('r')
-    metadata['booktitle'] = match.group('b')
-    return metadata
+    meta = {}
+    meta['product'] = 'HDP-Win'
+    meta['release'] = match.group('r')
+    meta['booktitle'] = match.group('b')
+    return meta
 
 
-def win_old_path(match):
-    """Get product, version, and book title from path, where possible"""
+def _win_old_path(match: 're.match') -> dict:
+    """Extract product, release, and booktitle from standard
+       docs.hortonworks URL paths.
+
+    Args:
+        match  A compiled re.match object.
+
+    Returns:
+        A dict containing product, release, and booktitle values.
+    """
     assert isinstance(match, type(re.match('', ''))), (
         'match is not a re.match: %r' % match)
-    metadata = {}
-    metadata['product'] = 'HDP-Win'
-    metadata['release'] = match.group('r')
-    metadata['booktitle'] = match.group('b')
-    return metadata
+    meta = {}
+    meta['product'] = 'HDP-Win'
+    meta['release'] = match.group('r')
+    meta['booktitle'] = match.group('b')
+    return meta
 
 
-def ambari_path(match):
-    """Get product, version, and book title from path, where possible"""
+def _ambari_path(match: 're.match') -> dict:
+    """Extract product, release, and booktitle from standard
+       docs.hortonworks URL paths.
+
+    Args:
+        match  A compiled re.match object.
+
+    Returns:
+        A dict containing product, release, and booktitle values.
+    """
     assert isinstance(match, type(re.match('', ''))), (
         'match is not a re.match: %r' % match)
-    metadata = {}
-    metadata['product'] = 'Ambari'
-    metadata['release'] = match.group('r')
-    metadata['booktitle'] = match.group('b')
-    return metadata
+    meta = {}
+    meta['product'] = 'Ambari'
+    meta['release'] = match.group('r')
+    meta['booktitle'] = match.group('b')
+    return meta
 
 
-def std_path_index(match):
-    """Get product, version, and book title from path, where possible"""
+def _std_path_index(match: 're.match') -> dict:
+    """Extract product, release, and booktitle from standard
+       docs.hortonworks URL paths.
+
+    Args:
+        match  A compiled re.match object.
+
+    Returns:
+        A dict containing product, release, and booktitle values.
+    """
     assert isinstance(match, type(re.match('', ''))), (
         'match is not a re.match: %r' % match)
-    metadata = {}
-    metadata['product'] = match.group('p')
-    metadata['release'] = match.group('r')
-    return metadata
+    meta = {}
+    meta['product'] = match.group('p')
+    meta['release'] = match.group('r')
+    return meta
 
 
-def win_new_index(match):
-    """Get product, version, and book title from path, where possible"""
+def _win_new_index(match: 're.match') -> dict:
+    """Extract product, release, and booktitle from standard
+       docs.hortonworks URL paths.
+
+    Args:
+        match  A compiled re.match object.
+
+    Returns:
+        A dict containing product, release, and booktitle values.
+    """
     assert isinstance(match, type(re.match('', ''))), (
         'match is not a re.match: %r' % match)
-    metadata = {}
-    metadata['product'] = 'HDP-Win'
-    metadata['release'] = match.group('r')
-    return metadata
+    meta = {}
+    meta['product'] = 'HDP-Win'
+    meta['release'] = match.group('r')
+    return meta
 
 
-def win_old_index(match):
-    """Get product, version, and book title from path, where possible"""
+def _win_old_index(match: 're.match') -> dict:
+    """Extract product, release, and booktitle from standard
+       docs.hortonworks URL paths.
+
+    Args:
+        match  A compiled re.match object.
+
+    Returns:
+        A dict containing product, release, and booktitle values.
+    """
     assert isinstance(match, type(re.match('', ''))), (
         'match is not a re.match: %r' % match)
-    metadata = {}
-    metadata['product'] = 'HDP-Win'
-    metadata['release'] = match.group('r')
-    return metadata
+    meta = {}
+    meta['product'] = 'HDP-Win'
+    meta['release'] = match.group('r')
+    return meta
 
 
-def ambari_path_index(match):
-    """Get product, version, and book title from path, where possible"""
+def _ambari_path_index(match: 're.match') -> dict:
+    """Extract product, release, and booktitle from standard
+       docs.hortonworks URL paths.
+
+    Args:
+        match  A compiled re.match object.
+
+    Returns:
+        A dict containing product, release, and booktitle values.
+    """
     assert isinstance(match, type(re.match('', ''))), (
         'match is not a re.match: %r' % match)
-    metadata = {}
-    metadata['product'] = 'Ambari'
-    metadata['release'] = match.group('r')
-    return metadata
+    meta = {}
+    meta['product'] = 'Ambari'
+    meta['release'] = match.group('r')
+    return meta
 
 
-def product_index(match):
-    """Get product, version, and book title from path, where possible"""
+def _product_index(match: 're.match') -> dict:
+    """Extract product, release, and booktitle from standard
+       docs.hortonworks URL paths.
+
+    Args:
+        match  A compiled re.match object.
+
+    Returns:
+        A dict containing product, release, and booktitle values.
+    """
     assert isinstance(match, type(re.match('', ''))), (
         'match is not a re.match: %r' % match)
-    metadata = {}
-    metadata['product'] = match.group('p')
-    return metadata
+    meta = {}
+    meta['product'] = match.group('p')
+    return meta
 
 
-def parse_path(path):
-    """Get product, release, and book name from path"""
+def parse_path(path: str) -> dict:
+    """Extract product, release, and booktitle from standard
+       docs.hortonworks URL paths.
+
+    Args:
+        path  A URL path.
+
+    Returns:
+        A dict containing product, release, and booktitle values.
+    """
     assert isinstance(path, str), (
         'path is not a string: %r' % path)
 
@@ -333,41 +627,48 @@ def parse_path(path):
         """, flags=re.X)
 
     # Associate the complied regex keys with function names
-    # (which happen to have the same name)
     process = {
-        'std_path': std_path,
-        'hdp_23_yj_path': hdp_23_yj_path,
-        'win_new_path': win_new_path,
-        'win_old_path': win_old_path,
-        'ambari_path': ambari_path,
-        'std_path_index': std_path_index,
-        'win_new_index': win_new_index,
-        'win_old_index': win_old_index,
-        'ambari_path_index': ambari_path_index,
-        'product_index': product_index,
+        'std_path': _std_path,
+        'hdp_23_yj_path': _hdp_23_yj_path,
+        'win_new_path': _win_new_path,
+        'win_old_path': _win_old_path,
+        'ambari_path': _ambari_path,
+        'std_path_index': _std_path_index,
+        'win_new_index': _win_new_index,
+        'win_old_index': _win_old_index,
+        'ambari_path_index': _ambari_path_index,
+        'product_index': _product_index,
     }
 
-    path_metadata = {}
+    meta = {}
 
     # Call the appropriate subroutine using the "process" lookup table, above
     for key in regex:
         match = regex[key].search(path)
         if match:
-            path_metadata = process[key](match)
+            meta = process[key](match)
 
-    if 'product' in path_metadata:
-        path_metadata['product'] = standardize_product(path_metadata['product'])
-    if 'release' in path_metadata:
-        path_metadata['release'] = standardize_release(path_metadata['release'])
+    if 'product' in meta:
+        meta['product'] = standardize_product(meta['product'])
+    if 'release' in meta:
+        meta['release'] = standardize_release(meta['release'])
+    if 'booktitle' in meta:
+        meta['booktitle'] = standardize_booktitle(meta['booktitle'])
 
-    if not path_metadata:
+    if not meta:
         logging.warning('No path metadata from ' + path)
-    return path_metadata
+    return meta
 
 
-def get_datetime(path):
+def get_datetime(path: str) -> str:
     """Return UTC file modification date in datetime format. See
     https://www.w3.org/TR/NOTE-datetime
+
+    Args:
+        path  A path to a file.
+
+    Returns:
+        A string of the modification time in datetime format.
     """
     assert isinstance(path, str), (
         'path is not a string: %r' % path)
@@ -377,8 +678,16 @@ def get_datetime(path):
     return datetime
 
 
-def get_text(element):
-    """Get text from HTML elements, even text after child elements (tails)."""
+def get_text(element: 'lxml.html.HtmlElement') -> str:
+    """Get text from HTML elements, even text after child elements (tails).
+
+    Args:
+        element  An lxml.html.HtmlElement object.
+
+    Returns:
+        The text from the elment and all its decendent elements in document
+        order. Does not return contents of script or style elements.
+    """
 
     if (not isinstance(element, lxml.html.HtmlElement) and
             not isinstance(element, lxml.html.FormElement) and
@@ -415,28 +724,45 @@ def get_text(element):
         return ''.join(text)
 
 
-def get_html_metas(etree, dictionary):
-    """Get name values and content values from HTML meta elements."""
-    assert isinstance(dictionary, dict), (
-        'dictionary is not a dictionary: %r' % dictionary)
+def get_html_metas(etree: 'lxml.html.parse', meta: dict) -> dict:
+    """Add name and content values from HTML meta elements to passed dictionary.
+
+    Args:
+        etree  An element tree representing a parsed HTML document.
+        meta  A dictionary of metadata relating to the same HTML document.
+
+    Returns:
+        The dictionary of metadata.
+    """
+    assert isinstance(meta, dict), (
+        'meta is not a dictionary: %r' % meta)
 
     if etree.getroot() is None:
         logging.error('No root in etree passed to get_html_metas()')
         return {}
 
-    for meta in etree.xpath("//meta"):
-        attribs = meta.attrib
+    for html_meta in etree.xpath("//meta"):
+        attribs = html_meta.attrib
         if 'name' in attribs and 'content' in attribs:
-            dictionary[attribs.get('name').lower().strip()] = (
+            meta[attribs.get('name').lower().strip()] = (
                 normalize_whitespace(attribs.get('content')))
 
-    return dictionary
+    return meta
 
 
-def get_html_lang(etree, dictionary):
-    """Get list of explicit lang and xml:lang values from all HTML elements."""
-    assert isinstance(dictionary, dict), (
-        'dictionary is not a dictionary: %r' % dictionary)
+def get_html_lang(etree: 'lxml.html.parse', meta: dict) -> dict:
+    """Get list of explicit lang and xml:lang values from all HTML elements.
+
+    Args:
+        etree  An element tree representing a parsed HTML document.
+        meta  A dictionary of metadata relating to the same HTML document.
+
+    Returns:
+        The dictionary of metadata. Note the lang value is a space-separated
+        list of lang values, not a single value.
+    """
+    assert isinstance(meta, dict), (
+        'meta is not a dictionary: %r' % meta)
 
     if etree.getroot() is None:
         logging.error('No root in etree passed to get_html_lang()')
@@ -447,38 +773,83 @@ def get_html_lang(etree, dictionary):
     for xpath in lang_attributes:
         lang = etree.xpath(xpath)
         lang_list.append(lang)
-    dictionary['lang'] = ' '.join(lang_list)
-    dictionary['lang'] = dictionary['lang'].replace('_', '-')
-    dictionary['lang'] = normalize_whitespace(dictionary['lang'])
-    if not dictionary['lang']:
-        dictionary['lang'] = 'en'
+    meta['lang'] = ' '.join(lang_list)
+    meta['lang'] = meta['lang'].replace('_', '-')
+    meta['lang'] = normalize_whitespace(meta['lang'])
+    if not meta['lang']:
+        meta['lang'] = 'en'
 
-    return dictionary
+    return meta
 
 
-def get_html_title(etree, dictionary, section_numbering_characters):
-    """Get title from HTML document."""
-    assert isinstance(dictionary, dict), (
-        'dictionary is not a dictionary: %r' % dictionary)
+def _process_title(title: str, section_numbering_characters: str) -> str:
+    """Makes title better for display.
+
+    Args:
+        title  A title from an HTML page.
+
+    Returns:
+        The title processed for display.
+    """
+    assert isinstance(title, str), (
+        'title is not a string: %r' % title)
+
+    title = normalize_whitespace(title)
+    title = trim_prefix(title, 'Chapter')
+    title = title.lstrip(section_numbering_characters)
+
+    return title
+
+
+def get_html_title(etree: 'lxml.html.parse', meta: dict,
+                   section_numbering_characters: str) -> dict:
+    """Add title key and associated value to passed dictionary.
+
+    Args:
+        etree  An element tree representing a parsed HTML document.
+        meta  A dictionary of metadata relating to the same HTML document.
+        section_numbering_characters  Characters to strip from the beginning
+            of titles to remove section numbering.
+
+    Returns:
+        The dictionary of metadata.
+    """
+    assert isinstance(meta, dict), (
+        'meta is not a dictionary: %r' % meta)
 
     if etree.getroot() is None:
         logging.error('No root in etree passed to get_html_title()')
         return {}
 
-    titles = etree.xpath("//title")
-    if titles:
-        dictionary['title'] = get_text(titles[0])
-        dictionary['title'] = normalize_whitespace(dictionary['title'])
-        dictionary['title'] = trim_prefix(dictionary['title'], 'Chapter')
-        dictionary['title'] = dictionary['title'].lstrip(section_numbering_characters)
+    h1s = etree.xpath("//h1")
+    if h1s:
+        meta['title'] = get_text(h1s[0])
+        meta['title'] = _process_title(meta['title'], section_numbering_characters)
 
-    return dictionary
+    if 'title' not in meta:
+        titles = etree.xpath("//title")
+        if titles:
+            meta['title'] = get_text(titles[0])
+            meta['title'] = _process_title(meta['title'], section_numbering_characters)
+
+    return meta
 
 
-def get_html_priority_text(etree, dictionary, section_numbering_characters):
-    """Get important text from HTML document."""
-    assert isinstance(dictionary, dict), (
-        'dictionary is not a dictionary: %r' % dictionary)
+def get_html_priority_text(etree: 'lxml.html.parse', meta: dict,
+                           section_numbering_characters: str) -> dict:
+    """Add priority text from HTML document to ptext key in passed dictionary.
+
+    Args:
+        etree  An element tree representing a parsed HTML document.
+        meta  A dictionary of metadata relating to the same HTML document.
+        section_numbering_characters  Characters to strip from the beginning
+            of titles to remove section numbering.
+
+    Returns:
+        The dictionary of metadata.
+    """
+    assert isinstance(meta, dict), (
+        'meta is not a dictionary: %r' % meta)
 
     if etree.getroot() is None:
         logging.error('No root in etree passed to get_html_priority_text()')
@@ -493,21 +864,29 @@ def get_html_priority_text(etree, dictionary, section_numbering_characters):
                 p_text = get_text(elem)
                 p_text = p_text.lstrip(section_numbering_characters)
                 priority_text_list.append(p_text)
-    if 'description' in dictionary:
-        priority_text_list.append(dictionary['description'])
-    if 'keywords' in dictionary:
-        priority_text_list.append(dictionary['keywords'])
+    if 'description' in meta:
+        priority_text_list.append(meta['description'])
+    if 'keywords' in meta:
+        priority_text_list.append(meta['keywords'])
     priority_text = ' '.join(priority_text_list)
     priority_text = normalize_whitespace(priority_text)
-    dictionary['ptext'] = priority_text
+    meta['ptext'] = priority_text
 
-    return dictionary
+    return meta
 
 
-def get_html_text(etree, dictionary):
-    """Get text from HTML document."""
-    assert isinstance(dictionary, dict), (
-        'dictionary is not a dictionary: %r' % dictionary)
+def get_html_text(etree: 'lxml.html.parse', meta: dict) -> dict:
+    """Add text from HTML document to text key in passed dictionary.
+
+    Args:
+        etree  An element tree representing a parsed HTML document.
+        meta  A dictionary of metadata relating to the same HTML document.
+
+    Returns:
+        The dictionary of metadata.
+    """
+    assert isinstance(meta, dict), (
+        'meta is not a dictionary: %r' % meta)
 
     if etree.getroot() is None:
         logging.error('No root in etree passed to get_html_text()')
@@ -515,23 +894,32 @@ def get_html_text(etree, dictionary):
 
     content = etree.xpath("/html/body/div[@id='content']")
     if content:
-        dictionary['text'] = get_text(content[0])
+        meta['text'] = get_text(content[0])
     else:
-        dictionary['text'] = get_text(etree.getroot())
-    dictionary['text'] = normalize_whitespace(dictionary['text'])
-    dictionary['text'] = trim_suffix(dictionary['text'], ' Legal notices')
+        meta['text'] = get_text(etree.getroot())
+    meta['text'] = normalize_whitespace(meta['text'])
+    meta['text'] = trim_suffix(meta['text'], ' Legal notices')
 
-    return dictionary
+    return meta
 
 
-def html_to_json(html_path, path_prefix=''):
-    """Parse HTML and return a dictionary that can be converted to a JSON file."""
+def html_to_json(html_path: str, path_prefix: str='') -> dict:
+    """Parse HTML and return a dictionary that can be converted to a JSON
+    file.
+
+    Args:
+        html_path  Path to a directory containing HTML and text files.
+        path_prefix  String of text to be removed from the beginning of URLs.
+
+    Returns:
+        A dictionary of metadata suitable for conversion to a JSON file.
+    """
     assert isinstance(html_path, str), (
         'html_path is not a string: %r' % html_path)
     assert isinstance(path_prefix, str), (
         'path_prefix is not a string: %r' % path_prefix)
 
-    dictionary = {}
+    meta = {}
     section_numbering_characters = ('-.0123456789'
                                     "\N{SPACE}\N{NO-BREAK SPACE}\N{EN DASH}")
     # Parse page
@@ -541,31 +929,31 @@ def html_to_json(html_path, path_prefix=''):
         return {}
 
     # Get meta element values
-    get_html_metas(etree, dictionary)
+    get_html_metas(etree, meta)
 
     # Get page languages
-    get_html_lang(etree, dictionary)
+    get_html_lang(etree, meta)
 
     # Get page title
-    get_html_title(etree, dictionary, section_numbering_characters)
-    if 'title' not in dictionary:
+    get_html_title(etree, meta, section_numbering_characters)
+    if 'title' not in meta:
         logging.error('No title: ' + html_path)
 
     # Get text from areas representing priority content
     # Matches in this content should cause the document to rank higher
-    get_html_priority_text(etree, dictionary, section_numbering_characters)
+    get_html_priority_text(etree, meta, section_numbering_characters)
 
     # Get page content
-    get_html_text(etree, dictionary)
+    get_html_text(etree, meta)
 
     # Convert file system path to URL syntax
-    dictionary['url'] = trim_prefix(html_path, path_prefix)
-    dictionary['url'] = urllib.parse.quote(dictionary['url'])
+    meta['url'] = trim_prefix(html_path, path_prefix)
+    meta['url'] = urllib.parse.quote(meta['url'])
 
     # Update dictionary with metadata from the file path
-    dictionary.update(parse_path(html_path))
+    meta.update(parse_path(html_path))
 
-    return dictionary
+    return meta
 
 
 # Command-line interface
