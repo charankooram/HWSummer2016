@@ -88,7 +88,7 @@ def text_to_json(text_file: str, path_prefix: str='') -> dict:
         path_prefix  String to remove from front of URL written to JSON.
 
     Returns:
-        A dictionary of metadata gathered from the file path.
+        A dict of metadata gathered from the file path.
     """
     assert isinstance(text_file, str), (
         'html_path is not a string: %r' % text_file)
@@ -112,7 +112,7 @@ def text_to_json(text_file: str, path_prefix: str='') -> dict:
 
     meta = {'url': url, 'title': title, 'text': text}
 
-    # Update dictionary with metadata from the file path
+    # Update dict with metadata from the file path
     meta.update(parse_path(text_file))
 
     return meta
@@ -671,8 +671,9 @@ def get_text(element: 'lxml.html.HtmlElement') -> str:
         element  An lxml.html.HtmlElement object.
 
     Returns:
-        The text from the elment and all its decendent elements in document
-        order. Does not return contents of script or style elements.
+        The text from the elment and all its decendent elements in
+        document order. Does not return contents of script or style
+        elements.
     """
     if (not isinstance(element, lxml.html.HtmlElement) and
             not isinstance(element, lxml.html.FormElement) and
@@ -710,17 +711,17 @@ def get_text(element: 'lxml.html.HtmlElement') -> str:
 
 
 def get_html_metas(etree: 'lxml.html.parse', meta: dict) -> dict:
-    """Add name and content values from HTML meta elements to passed dictionary.
+    """Add name and content values from HTML meta elements to passed dict.
 
     Args:
         etree  An element tree representing a parsed HTML document.
-        meta  A dictionary of metadata relating to the same HTML document.
+        meta  A dict of metadata relating to the same HTML document.
 
     Returns:
-        The dictionary of metadata.
+        The dict of metadata.
     """
     assert isinstance(meta, dict), (
-        'meta is not a dictionary: %r' % meta)
+        'meta is not a dict: %r' % meta)
 
     if etree.getroot() is None:
         logging.error('No root in etree passed to get_html_metas()')
@@ -740,14 +741,14 @@ def get_html_lang(etree: 'lxml.html.parse', meta: dict) -> dict:
 
     Args:
         etree  An element tree representing a parsed HTML document.
-        meta  A dictionary of metadata relating to the same HTML document.
+        meta  A dict of metadata relating to the same HTML document.
 
     Returns:
-        The dictionary of metadata. Note the lang value is a space-separated
+        The dict of metadata. Note the lang value is a space-separated
         list of lang values, not a single value.
     """
     assert isinstance(meta, dict), (
-        'meta is not a dictionary: %r' % meta)
+        'meta is not a dict: %r' % meta)
 
     if etree.getroot() is None:
         logging.error('No root in etree passed to get_html_lang()')
@@ -772,6 +773,8 @@ def _process_title(title: str, section_numbering_characters: str) -> str:
 
     Args:
         title  A title from an HTML page.
+        section_numbering_characters  Characters to strip from the
+            beginning of titles to remove section numbering.
 
     Returns:
         The title processed for display.
@@ -788,19 +791,19 @@ def _process_title(title: str, section_numbering_characters: str) -> str:
 
 def get_html_title(etree: 'lxml.html.parse', meta: dict,
                    section_numbering_characters: str) -> dict:
-    """Add title key and associated value to passed dictionary.
+    """Add title key and associated value to passed dict.
 
     Args:
         etree  An element tree representing a parsed HTML document.
-        meta  A dictionary of metadata relating to the same HTML document.
-        section_numbering_characters  Characters to strip from the beginning
-            of titles to remove section numbering.
+        meta  A dict of metadata relating to the same HTML document.
+        section_numbering_characters  Characters to strip from the
+            beginning of titles to remove section numbering.
 
     Returns:
-        The dictionary of metadata.
+        The dict of metadata.
     """
     assert isinstance(meta, dict), (
-        'meta is not a dictionary: %r' % meta)
+        'meta is not a dict: %r' % meta)
 
     if etree.getroot() is None:
         logging.error('No root in etree passed to get_html_title()')
@@ -822,19 +825,19 @@ def get_html_title(etree: 'lxml.html.parse', meta: dict,
 
 def get_html_priority_text(etree: 'lxml.html.parse', meta: dict,
                            section_numbering_characters: str) -> dict:
-    """Add priority text from HTML document to ptext key in passed dictionary.
+    """Add priority text from HTML document to ptext key in passed dict.
 
     Args:
         etree  An element tree representing a parsed HTML document.
-        meta  A dictionary of metadata relating to the same HTML document.
-        section_numbering_characters  Characters to strip from the beginning
-            of titles to remove section numbering.
+        meta  A dict of metadata relating to the same HTML document.
+        section_numbering_characters  Characters to strip from the
+            beginning of titles to remove section numbering.
 
     Returns:
-        The dictionary of metadata.
+        The dict of metadata.
     """
     assert isinstance(meta, dict), (
-        'meta is not a dictionary: %r' % meta)
+        'meta is not a dict: %r' % meta)
 
     if etree.getroot() is None:
         logging.error('No root in etree passed to get_html_priority_text()')
@@ -861,17 +864,17 @@ def get_html_priority_text(etree: 'lxml.html.parse', meta: dict,
 
 
 def get_html_text(etree: 'lxml.html.parse', meta: dict) -> dict:
-    """Add text from HTML document to text key in passed dictionary.
+    """Add text from HTML document to text key in passed dict.
 
     Args:
         etree  An element tree representing a parsed HTML document.
-        meta  A dictionary of metadata relating to the same HTML document.
+        meta  A dict of metadata relating to the same HTML document.
 
     Returns:
-        The dictionary of metadata.
+        The dict of metadata.
     """
     assert isinstance(meta, dict), (
-        'meta is not a dictionary: %r' % meta)
+        'meta is not a dict: %r' % meta)
 
     if etree.getroot() is None:
         logging.error('No root in etree passed to get_html_text()')
@@ -893,10 +896,11 @@ def html_to_json(html_path: str, path_prefix: str='') -> dict:
 
     Args:
         html_path  Path to a directory containing HTML and text files.
-        path_prefix  String of text to be removed from the beginning of URLs.
+        path_prefix  String of text to be removed from the beginning of
+            URLs.
 
     Returns:
-        A dictionary of metadata suitable for conversion to a JSON file.
+        A dict of metadata suitable for conversion to a JSON file.
     """
     assert isinstance(html_path, str), (
         'html_path is not a string: %r' % html_path)
@@ -934,7 +938,7 @@ def html_to_json(html_path: str, path_prefix: str='') -> dict:
     meta['url'] = trim_prefix(html_path, path_prefix)
     meta['url'] = urllib.parse.quote(meta['url'])
 
-    # Update dictionary with metadata from the file path
+    # Update dict with metadata from the file path
     meta.update(parse_path(html_path))
 
     return meta
