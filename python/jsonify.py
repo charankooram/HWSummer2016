@@ -26,8 +26,7 @@ __version__ = '0.0.6'
 
 
 def mirror_dirs(src_dir: str, dest_dir: str) -> None:
-    """Recurse src_dir to mirror text and HTML files in dest_dir as JSON
-    files.
+    """Transform HTML and text to JSON and copy to mirrored directory.
 
     Args:
         src_dir  Directory containing text and HTML files.
@@ -82,8 +81,7 @@ def mirror_dirs(src_dir: str, dest_dir: str) -> None:
 
 
 def text_to_json(text_file: str, path_prefix: str='') -> dict:
-    """Parse text and return a dictionary that can be converted to a JSON
-    file.
+    """Parse text and return a dict that can be converted to JSON.
 
     Args:
         text_file  Path to a text file.
@@ -121,8 +119,7 @@ def text_to_json(text_file: str, path_prefix: str='') -> dict:
 
 
 def normalize_whitespace(text: str) -> str:
-    """Collapses whitespace to a single spaces, trims leading and trailing
-    spaces.
+    """Collapse whitespace to single spaces, trim leading and trailing spaces.
 
     Args:
         text  Text from which whitespace will be removed.
@@ -178,8 +175,7 @@ def trim_suffix(original: str, suffix: str) -> str:
 
 
 def standardize_release(relnum: str) -> str:
-    """Assure all release numbers have four parts, by appending dots
-    and zeros if necessary.
+    """Assure four-part release numbers.
 
     Args:
         relnum  A string. Ideally digits and dots, such as "1.1".
@@ -378,8 +374,7 @@ def standardize_booktitle(abbr: str) -> str:
 
 
 def _std_path(match: 're.match') -> dict:
-    """Extract product, release, and booktitle from standard
-       docs.hortonworks URL paths.
+    """Get product, release, and booktitle from path.
 
     Args:
         match  A compiled re.match object.
@@ -397,8 +392,7 @@ def _std_path(match: 're.match') -> dict:
 
 
 def _hdp_23_yj_path(match: 're.match') -> dict:
-    """Extract product, release, and booktitle from standard
-       docs.hortonworks URL paths.
+    """Get product, release, and booktitle from path.
 
     Args:
         match  A compiled re.match object.
@@ -416,8 +410,7 @@ def _hdp_23_yj_path(match: 're.match') -> dict:
 
 
 def _win_new_path(match: 're.match') -> dict:
-    """Extract product, release, and booktitle from standard
-       docs.hortonworks URL paths.
+    """Get product, release, and booktitle from path.
 
     Args:
         match  A compiled re.match object.
@@ -435,8 +428,7 @@ def _win_new_path(match: 're.match') -> dict:
 
 
 def _win_old_path(match: 're.match') -> dict:
-    """Extract product, release, and booktitle from standard
-       docs.hortonworks URL paths.
+    """Get product, release, and booktitle from path.
 
     Args:
         match  A compiled re.match object.
@@ -454,8 +446,7 @@ def _win_old_path(match: 're.match') -> dict:
 
 
 def _ambari_path(match: 're.match') -> dict:
-    """Extract product, release, and booktitle from standard
-       docs.hortonworks URL paths.
+    """Get product, release, and booktitle from path.
 
     Args:
         match  A compiled re.match object.
@@ -473,8 +464,7 @@ def _ambari_path(match: 're.match') -> dict:
 
 
 def _std_path_index(match: 're.match') -> dict:
-    """Extract product, release, and booktitle from standard
-       docs.hortonworks URL paths.
+    """Get product, release, and booktitle from path.
 
     Args:
         match  A compiled re.match object.
@@ -491,8 +481,7 @@ def _std_path_index(match: 're.match') -> dict:
 
 
 def _win_new_index(match: 're.match') -> dict:
-    """Extract product, release, and booktitle from standard
-       docs.hortonworks URL paths.
+    """Get product, release, and booktitle from path.
 
     Args:
         match  A compiled re.match object.
@@ -509,8 +498,7 @@ def _win_new_index(match: 're.match') -> dict:
 
 
 def _win_old_index(match: 're.match') -> dict:
-    """Extract product, release, and booktitle from standard
-       docs.hortonworks URL paths.
+    """Get product, release, and booktitle from path.
 
     Args:
         match  A compiled re.match object.
@@ -527,8 +515,7 @@ def _win_old_index(match: 're.match') -> dict:
 
 
 def _ambari_path_index(match: 're.match') -> dict:
-    """Extract product, release, and booktitle from standard
-       docs.hortonworks URL paths.
+    """Get product, release, and booktitle from path.
 
     Args:
         match  A compiled re.match object.
@@ -545,8 +532,7 @@ def _ambari_path_index(match: 're.match') -> dict:
 
 
 def _product_index(match: 're.match') -> dict:
-    """Extract product, release, and booktitle from standard
-       docs.hortonworks URL paths.
+    """Get product, release, and booktitle from path.
 
     Args:
         match  A compiled re.match object.
@@ -562,8 +548,7 @@ def _product_index(match: 're.match') -> dict:
 
 
 def parse_path(path: str) -> dict:
-    """Extract product, release, and booktitle from standard
-       docs.hortonworks URL paths.
+    """Get product, release, and booktitle from path.
 
     Args:
         path  A URL path.
@@ -661,8 +646,9 @@ def parse_path(path: str) -> dict:
 
 
 def get_datetime(path: str) -> str:
-    """Return UTC file modification date in datetime format. See
-    https://www.w3.org/TR/NOTE-datetime
+    """Return UTC file modification date in datetime format.
+
+    See https://www.w3.org/TR/NOTE-datetime
 
     Args:
         path  A path to a file.
@@ -688,7 +674,6 @@ def get_text(element: 'lxml.html.HtmlElement') -> str:
         The text from the elment and all its decendent elements in document
         order. Does not return contents of script or style elements.
     """
-
     if (not isinstance(element, lxml.html.HtmlElement) and
             not isinstance(element, lxml.html.FormElement) and
             not isinstance(element, lxml.html.InputElement)):
@@ -783,7 +768,7 @@ def get_html_lang(etree: 'lxml.html.parse', meta: dict) -> dict:
 
 
 def _process_title(title: str, section_numbering_characters: str) -> str:
-    """Makes title better for display.
+    """Make better display title.
 
     Args:
         title  A title from an HTML page.
@@ -904,8 +889,7 @@ def get_html_text(etree: 'lxml.html.parse', meta: dict) -> dict:
 
 
 def html_to_json(html_path: str, path_prefix: str='') -> dict:
-    """Parse HTML and return a dictionary that can be converted to a JSON
-    file.
+    """Parse HTML and return a dict that can be converted to JSON.
 
     Args:
         html_path  Path to a directory containing HTML and text files.
