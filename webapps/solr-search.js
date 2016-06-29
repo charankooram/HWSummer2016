@@ -1,14 +1,13 @@
 /* .. start with all the global variables here...*/
 
-var baseurl = "http://localhost:8983/solr/bianca/query?";
+var baseurl = "http://localhost:8983/solr/divya/query?";
 var q="";
-var rows = 10;
-var sort = "id+asc";
 var cursorMark="";
 var facet = true;
-var facetfield="product"; // Initially
+var facetfield=""; // Initially
 var pageArray = [];
 console.log("At the beginning page set is:" + pageArray.toString());
+console.log("Check Updates...");
 var current = 0;
 var nextCursorMarker = null;
 var fq1 = null;
@@ -20,7 +19,7 @@ var releaseComplete = null;
 var bkComplete = null;
 
 window.onload = function(){
-    initURL = "http://localhost:8983/solr/bianca/query?q=*:*&facet=true&facet.field=product&facet.field=release&facet.field=booktitle";
+    initURL = "http://localhost:8983/solr/divya/query";    //?q=*:*&facet=true&facet.field=product&facet.field=release&facet.field=booktitle";
     var iproduct = document.getElementById("productGrab");
     var irelease = document.getElementById("releaseGrab");
     var ibooktitle = document.getElementById("bktitleGrab");
@@ -31,7 +30,6 @@ window.onload = function(){
     bkComplete = new Awesomplete(ibooktitle);
     bkComplete.minChars = 1;
     GetResponse(initURL);
-    
 }
 
 function createRequest() {
@@ -99,11 +97,17 @@ function GetIncoming(Data){
     Data.response.docs.forEach(function AddIncomingToHtml(value){
         var urlstring = "http://docs.hortonworks.com/HDPDocuments"+value.url;
         textmaterial = value.text;
+        var i_id = value.id;
+        var highlightedText = Data.highlighting[i_id].text;
         if(textmaterial === undefined){
             out += "<a href=" + urlstring + ">" + value.title +
-                    "</a><br />" + urlstring + "<br />" + "<p>" +
+                    "</a><br />" + urlstring + "<br />"  +
+                    "<br />"+
+                    "Product :"+value.product+"<br />"+
+                    "Release :"+value.release+"<br />"+
+                    "BookTitle :"+value.booktitle+ "<br />"+
                      
-                    "</p><br / >"; 
+                    "<br / >"; 
         }else{
             out += "<a href=" + urlstring + ">" + value.title +
                     "</a><br />" + urlstring + "<br />" +
@@ -111,9 +115,9 @@ function GetIncoming(Data){
                     "Product :"+value.product+"<br />"+
                     "Release :"+value.release+"<br />"+
                     "BookTitle :"+value.booktitle+ "<br />"+
-                    "<br />"+ "<p>"
-                     textmaterial.toString().substring(0, 400) + trailingdots +
-                    "</p><br / >"; 
+                    "<br />"+ 
+                     highlightedText + trailingdots +
+                    "<br / ><br />"; 
         }
     });
     return out;
@@ -138,7 +142,7 @@ function UponSubmit() {
     pageArray.push("*");
     cursorMark="*";
     facet = false;
-    var url = MakeUrl(baseurl,q,rows,sort,cursorMark,facet,facetfield,fq1,fq2,fq3);
+    var url = MakeUrl(baseurl,q,cursorMark,facet,fq1,fq2,fq3); // Since facet is false; All the remaining facetparameters are irrelavant;
     new GetResponse(url);
     pageArray.forEach(printArray);
     
@@ -152,7 +156,7 @@ function UponNext() {
     }
     current += 1;
     cursorMark = pageArray[current];
-    var url = MakeUrl(baseurl,q,rows,sort,cursorMark,facet,facetfield,fq1,fq2,fq3);
+    var url = MakeUrl(baseurl,q,cursorMark,facet,fq1,fq2,fq3);
     new GetResponse(url);
     //console.log("pageset after hitting next :" + pageArray.toString());
     pageArray.forEach(printArray);
@@ -166,7 +170,7 @@ function UponPrev() {
     }
     current -= 1;
     cursorMark = pageArray[current];
-    var url = MakeUrl(baseurl,q,rows,sort,cursorMark,facet,facetfield,fq1,fq2,fq3);
+    var url = MakeUrl(baseurl,q,cursorMark,facet,fq1,fq2,fq3);
     new GetResponse(url);
     console.log("page set after hitting prev :" + pageArray.toString());
 }
@@ -200,7 +204,7 @@ function UponFilter(){
     }else{
         fq3 = null;
     }
-    var urlToUse = MakeUrl(baseurl,q,rows,sort,cursorMark,facet,facetfield,fq1,fq2,fq3);
+    var urlToUse = MakeUrl(baseurl,q,rows,sort,cursorMark,facet,fq1,fq2,fq3);
     GetResponse(urlToUse);
 }
 
@@ -224,8 +228,8 @@ function addnewCursorMarker(newCursorMarker) {
     console.log("At the beginning page after this function :" + pageArray.toString());
 }
 
-function MakeUrl(baseurl,q,rows,sort,cursorMark,facet,facetfield,fq1,fq2,fq3){
-    var url = baseurl+"q="+q+"&rows="+rows+"&sort="+sort+"&cursorMark="+cursorMark+"&facet="+facet+"&facet.field="+facetfield;
+function MakeUrl(baseurl,q,cursorMark,facet,fq1,fq2,fq3){
+    var url = baseurl+"q="+q+"&cursorMark="+cursorMark+"&facet="+facet;
     if(fq1 != null){
         url = url + "&fq=product:"+fq1;
     }
