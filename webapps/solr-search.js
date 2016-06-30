@@ -1,10 +1,10 @@
-/* .. start with all the global variables here...*/
+fa/* .. start with all the global variables here...*/
 
 var baseurl = "http://localhost:8983/solr/divya/query?";
 var q="";
 var cursorMark="";
 var facet = true;
-var facetfield=""; // Initially
+var facetfield=""; // Initially.
 var pageArray = [];
 console.log("At the beginning page set is:" + pageArray.toString());
 console.log("Check Updates...");
@@ -13,11 +13,15 @@ var nextCursorMarker = null;
 var fq1 = null;
 var fq2 = null;
 var fq3 = null;
-var display = false; // For the initURL call to grab facets but not display *:* content
+var display = false; // For the initURL call to grab facets but not display *:* content.
 var productComplete = null;
 var releaseComplete = null;
 var bkComplete = null;
 
+/*
+ * Initialize variables for the autocomplete feature once the page loads.
+ * Call the initial URL to grab the facet details for product/release/booktitle.
+ */
 window.onload = function(){
     initURL = "http://localhost:8983/solr/divya/query";    //?q=*:*&facet=true&facet.field=product&facet.field=release&facet.field=booktitle";
     var iproduct = document.getElementById("productGrab");
@@ -32,6 +36,10 @@ window.onload = function(){
     GetResponse(initURL);
 }
 
+/*
+ * Create XmlHttpObject.
+ * TODO: add changes from workboard.js
+ */
 function createRequest() {
     "use strict";
     var result = null;
@@ -43,6 +51,9 @@ function createRequest() {
 
 var req = createRequest();
 
+/*
+ * Send http request to the solr URL generated.
+ */
 function GetResponse(url) {
     "use strict";
     req.open("GET", url, true);
@@ -50,6 +61,13 @@ function GetResponse(url) {
     console.log("REQUEST SENT");
 }
 
+/*
+ * If display flag is false (page just loaded) ; Read facet information for autocomplete features and update display flag.
+ * Make JSON object from the response received and call parsing functions.
+ * ->GetIncoming for reading the search results.
+ * -> GetFacets for reading the facet tags.
+ * Read cursormarker and check if the pagearray needs to be updated.
+ */
 function onGettingResponse() {
     "use strict";
     console.log("Ready state is:" + req.readyState);
@@ -75,6 +93,9 @@ function onGettingResponse() {
 
 req.onreadystatechange = onGettingResponse;
 
+/*
+ * Parse Json object and read facets tag from response.
+ */
 function GetFacets(Data){
     var facets="";
     var index = 0;
@@ -91,9 +112,13 @@ function GetFacets(Data){
     return facets;
 }
 
+/*
+ * Parse json object and read data tag from response.
+ * read highlighting tag for text snippet.
+ */
 function GetIncoming(Data){
     var out="";
-    trailingdots = "....";
+    trailingdots = "\u2026";
     Data.response.docs.forEach(function AddIncomingToHtml(value){
         var urlstring = "http://docs.hortonworks.com/HDPDocuments"+value.url;
         textmaterial = value.text;
@@ -102,21 +127,14 @@ function GetIncoming(Data){
         if(textmaterial === undefined){
             out += "<a href=" + urlstring + ">" + value.title +
                     "</a><br />" + urlstring + "<br />"  +
-                    "<br />"+
-                    "Product :"+value.product+"<br />"+
-                    "Release :"+value.release+"<br />"+
-                    "BookTitle :"+value.booktitle+ "<br />"+
-                     
+                    "<font size=1 color=blue>["+value.product+"/"+value.release+"/"+value.booktitle+"]</font>" +
                     "<br / >"; 
         }else{
             out += "<a href=" + urlstring + ">" + value.title +
                     "</a><br />" + urlstring + "<br />" +
-                    "<br />"+
-                    "Product :"+value.product+"<br />"+
-                    "Release :"+value.release+"<br />"+
-                    "BookTitle :"+value.booktitle+ "<br />"+
+                    "<font size=1 color=blue>["+value.product+"/"+value.release+"/"+value.booktitle+"]</font>" +
                     "<br />"+ 
-                     highlightedText + trailingdots +
+                     trailingdots+" "+highlightedText +" "+ trailingdots +
                     "<br / ><br />"; 
         }
     });
@@ -125,7 +143,7 @@ function GetIncoming(Data){
 
  /*
  * Grabs the query text and performs a search.
- * Should it clear the pagearray before pushing the * ?
+ * Should it clear the pagearray before pushing the * ???
  * Clears all the filter textfields.
  * Hence set all the filter query parameters to null.
  * Turn off facet.
@@ -148,6 +166,10 @@ function UponSubmit() {
     
 }
 
+/*
+ * Increment the pagearray pointer and grab the next cursormarker to move to next page.
+ * Generate Solr URL and make a http call.
+ */
 function UponNext() {
     "use strict";
     if (pageArray[current + 1] === undefined) {
@@ -158,10 +180,13 @@ function UponNext() {
     cursorMark = pageArray[current];
     var url = MakeUrl(baseurl,q,cursorMark,facet,fq1,fq2,fq3);
     new GetResponse(url);
-    //console.log("pageset after hitting next :" + pageArray.toString());
     pageArray.forEach(printArray);
 }
 
+/*
+ * Decrement the pagearray pointer and grab the appropriate cursormarker to prev page.
+ * Generate Solr URL and make a http call.
+ */
 function UponPrev() {
     "use strict";
     if (current === 0) {
@@ -204,14 +229,21 @@ function UponFilter(){
     }else{
         fq3 = null;
     }
-    var urlToUse = MakeUrl(baseurl,q,rows,sort,cursorMark,facet,fq1,fq2,fq3);
+    var urlToUse = MakeUrl(baseurl,q,cursorMark,facet,fq1,fq2,fq3);
     GetResponse(urlToUse);
 }
 
+/*
+ * Debugging Utility Function to print the pagenumber carrying array.
+ */
 function printArray(element,index,array){
      console.log('current value in the page array is :'+element);   
 }
 
+/*
+ * Check if the cursormarker is not already present.
+ * Update pagearray with new cursormarker.
+ */
 function addnewCursorMarker(newCursorMarker) {
     "use strict";
     // check if cursormarker is not seen before.
@@ -228,6 +260,9 @@ function addnewCursorMarker(newCursorMarker) {
     console.log("At the beginning page after this function :" + pageArray.toString());
 }
 
+/*
+ * Append the parameters to generate new Solr URL.
+ */
 function MakeUrl(baseurl,q,cursorMark,facet,fq1,fq2,fq3){
     var url = baseurl+"q="+q+"&cursorMark="+cursorMark+"&facet="+facet;
     if(fq1 != null){
@@ -243,10 +278,15 @@ function MakeUrl(baseurl,q,cursorMark,facet,fq1,fq2,fq3){
    
 }
 
+/*
+ * Assign autocorrect variables with facet data from response.
+ */
 function loadAutoCompletes(Data){
     var pautoarray = [];
     var rautoarray = [];
     var bautoarray = [];
+    
+    //facet array is interspersed with product name and count of the product.
     Data.facet_counts.facet_fields.product.forEach(function readproduct(element,index,array){
         if(index%2 == 0){
            pautoarray[index/2] = element; 
@@ -254,6 +294,7 @@ function loadAutoCompletes(Data){
     });
     productComplete.list = pautoarray;
     
+    //facet array is interspersed with release name and count of the release.
     Data.facet_counts.facet_fields.release.forEach(function readrelease(element,index,array){
         if(index%2 == 0){
            rautoarray[index/2] = element; 
@@ -261,6 +302,7 @@ function loadAutoCompletes(Data){
     });
     releaseComplete.list = rautoarray;
     
+    //facet array is interspersed with booktitle and count of the booktitle.
     Data.facet_counts.facet_fields.booktitle.forEach(function readbooktitle(element,index,array){
         if(index%2 == 0){
            bautoarray[index/2] = element; 
