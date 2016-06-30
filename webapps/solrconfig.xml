@@ -818,7 +818,7 @@
       <str name="wt">json</str>
       <str name="indent">true</str>
       <str name="debugQuery">true</str>
-      <int name="rows">3</int>
+      <int name="rows">10</int>
       <str name="sort">id asc</str>
       <str name ="q">*:*</str>
       <str name="facet">true</str>
@@ -827,6 +827,7 @@
       <str name="facet.field">booktitle</str>
       <str name="hl">true</str>
       <str name="hl.fl">text</str>
+      <str name="hl.snippets">3</str>
     </lst>
   </requestHandler>
 
