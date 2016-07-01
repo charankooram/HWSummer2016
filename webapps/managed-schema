@@ -401,7 +401,7 @@
   <field name="_text_" type="text_general" multiValued="true" indexed="true" stored="false"/>
   <field name="_version_" type="long" indexed="true" stored="false"/>
   <field name="author" type="strings"/>
-  <field name="booktitle" type="strings"/>
+  <field name="booktitle" type="strings" indexed="true" stored="true"/>
   <field name="date" type="tdates"/>
   <field name="date-revision-yyyymmdd" type="tlongs"/>
   <field name="description" type="strings"/>
@@ -416,9 +416,9 @@
   <field name="mavenversionid" type="strings"/>
   <field name="originalfile" type="strings"/>
   <field name="originator" type="strings"/>
-  <field name="product" type="strings"/>
-  <field name="ptext" type="strings"/>
-  <field name="release" type="strings"/>
+  <field name="product" type="strings" indexed="true" stored="true"/>
+  <field name="ptext" type="strings" indexed="true" stored="true"/>
+  <field name="release" type="strings" indexed="true" stored="true"/>
   <field name="robots" type="strings"/>
   <field name="stream_size" type="tlongs"/>
   <field name="text" type="text_en_splitting" indexed="true" stored="true"/>
