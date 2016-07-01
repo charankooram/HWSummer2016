@@ -1,6 +1,6 @@
-fa/* .. start with all the global variables here...*/
+/* .. start with all the global variables here...*/
 
-var baseurl = "http://localhost:8983/solr/divya/query?";
+var baseurl = "http://localhost:8983/solr/corehw/query?";
 var q="";
 var cursorMark="";
 var facet = true;
@@ -23,7 +23,7 @@ var bkComplete = null;
  * Call the initial URL to grab the facet details for product/release/booktitle.
  */
 window.onload = function(){
-    initURL = "http://localhost:8983/solr/divya/query";    //?q=*:*&facet=true&facet.field=product&facet.field=release&facet.field=booktitle";
+    initURL = "http://localhost:8983/solr/corehw/query";    //?q=*:*&facet=true&facet.field=product&facet.field=release&facet.field=booktitle";
     var iproduct = document.getElementById("productGrab");
     var irelease = document.getElementById("releaseGrab");
     var ibooktitle = document.getElementById("bktitleGrab");
