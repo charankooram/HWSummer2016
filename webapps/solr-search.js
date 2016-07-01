@@ -6,8 +6,8 @@ var cursorMark="";
 var facet = true;
 var facetfield=""; // Initially.
 var pageArray = [];
-console.log("At the beginning page set is:" + pageArray.toString());
-console.log("Check Updates...");
+//console.log("At the beginning page set is:" + pageArray.toString());
+//console.log("Check Updates...");
 var current = 0;
 var nextCursorMarker = null;
 var fq1 = null;
@@ -58,7 +58,7 @@ function GetResponse(url) {
     "use strict";
     req.open("GET", url, true);
     req.send();
-    console.log("REQUEST SENT");
+    //console.log("REQUEST SENT");
 }
 
 /*
@@ -70,13 +70,13 @@ function GetResponse(url) {
  */
 function onGettingResponse() {
     "use strict";
-    console.log("Ready state is:" + req.readyState);
-    console.log("Ready status:" + req.status);
+    //console.log("Ready state is:" + req.readyState);
+    //console.log("Ready status:" + req.status);
     if (req.readyState === 4) {
         var Data = JSON.parse(req.responseText);
-        console.log(Data.response);
-        console.log(Data.responseHeader);
-        console.log(Data.nextCursorMark);
+        //console.log(Data.response);
+        //console.log(Data.responseHeader);
+        //console.log(Data.nextCursorMark);
         var out = GetIncoming(Data);
         if(facet!=false) var facets = GetFacets(Data);
         nextCursorMarker = Data.nextCursorMark;
@@ -150,6 +150,8 @@ function GetIncoming(Data){
  */
 function UponSubmit() {
     "use strict";
+    pageArray=[];
+    current=0;
     document.getElementById("productGrab").placeholder="product...";
     document.getElementById("releaseGrab").placeholder="release...";
     document.getElementById("bktitleGrab").placeholder="booktitle...";
@@ -158,11 +160,12 @@ function UponSubmit() {
     fq2 = null;
     fq3 = null;
     pageArray.push("*");
-    cursorMark="*";
+    cursorMark=pageArray[current];
     facet = false;
     var url = MakeUrl(baseurl,q,cursorMark,facet,fq1,fq2,fq3); // Since facet is false; All the remaining facetparameters are irrelavant;
     new GetResponse(url);
-    pageArray.forEach(printArray);
+    console.log("submit");
+    
     
 }
 
@@ -180,7 +183,8 @@ function UponNext() {
     cursorMark = pageArray[current];
     var url = MakeUrl(baseurl,q,cursorMark,facet,fq1,fq2,fq3);
     new GetResponse(url);
-    pageArray.forEach(printArray);
+    console.log("next");
+    //pageArray.forEach(printArray);
 }
 
 /*
@@ -197,7 +201,8 @@ function UponPrev() {
     cursorMark = pageArray[current];
     var url = MakeUrl(baseurl,q,cursorMark,facet,fq1,fq2,fq3);
     new GetResponse(url);
-    console.log("page set after hitting prev :" + pageArray.toString());
+    console.log("prev");
+    //pageArray.forEach(printArray);
 }
 
 /*
@@ -233,12 +238,6 @@ function UponFilter(){
     GetResponse(urlToUse);
 }
 
-/*
- * Debugging Utility Function to print the pagenumber carrying array.
- */
-function printArray(element,index,array){
-     console.log('current value in the page array is :'+element);   
-}
 
 /*
  * Check if the cursormarker is not already present.
@@ -257,13 +256,14 @@ function addnewCursorMarker(newCursorMarker) {
     if (flag !== true) {
         pageArray[current + 1] = newCursorMarker;
     }
-    console.log("At the beginning page after this function :" + pageArray.toString());
+    //console.log("At the beginning page after this function :" + pageArray.toString());
 }
 
 /*
  * Append the parameters to generate new Solr URL.
  */
 function MakeUrl(baseurl,q,cursorMark,facet,fq1,fq2,fq3){
+    console.log("Debugging cmarker:"+cursorMark);
     var url = baseurl+"q="+q+"&cursorMark="+cursorMark+"&facet="+facet;
     if(fq1 != null){
         url = url + "&fq=product:"+fq1;
