@@ -13,7 +13,6 @@ Use tar.bz2 to compress the resulting JSON:
 """
 
 import argparse
-import codecs
 import json
 import logging
 import os
@@ -76,7 +75,7 @@ def mirror_dirs(src_dir: str, dest_dir: str) -> None:
                                      ', v' + __version__)
 
             # Write JSON as UTF-8
-            with codecs.open(dest_path, mode='w', encoding='UTF-8') as file_handle:
+            with open(dest_path, mode='w', encoding='UTF-8') as file_handle:
                 json.dump(meta, file_handle, ensure_ascii=False)
 
 
@@ -96,7 +95,7 @@ def text_to_json(text_file: str, path_prefix: str='') -> dict:
         'path_prefix is not a string: %r' % path_prefix)
 
     # Read text files as cp1252, ignoring errors
-    with codecs.open(text_file, mode='r', encoding='cp1252', errors='ignore') as file_h:
+    with open(text_file, encoding='cp1252', errors='ignore') as file_h:
         content = file_h.read()
 
     # Convert file system path to URL syntax
