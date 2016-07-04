@@ -17,14 +17,21 @@ import json
 import logging
 import os
 import re
+import sys
 import time
+import yaml
 import urllib.parse
 import lxml.html
+
+try:
+    from yaml import CLoader as Loader
+except ImportError:
+    from yaml import Loader
 
 __version__ = '0.0.7'
 
 
-def mirror_dirs(src_dir: str, dest_dir: str) -> None:
+def jsonify(src_dir: str, dest_dir: str) -> None:
     """Transform HTML and text to JSON and copy to mirrored directory.
 
     Args:
@@ -48,7 +55,7 @@ def mirror_dirs(src_dir: str, dest_dir: str) -> None:
 
             # Recurse into different directoires
             dest_path = os.path.join(dest_dir, item)
-            mirror_dirs(src_path, dest_path)
+            jsonify(src_path, dest_path)
         else:
 
             # Consider only files with these extensions for conversion to JSON
@@ -70,14 +77,16 @@ def mirror_dirs(src_dir: str, dest_dir: str) -> None:
 
             meta['stream_size'] = os.path.getsize(src_path)
             meta['date'] = get_datetime(src_path)
-            meta['x_parsed_by'] = ('com.hortonworks.docs.' +
-                                   os.path.splitext(
-                                       os.path.basename(__file__))[0] +
-                                   ', v' + __version__)
+            meta['x_parsed_by'] = ''.join(['com.hortonworks.docs.',
+                                           os.path.splitext(
+                                               os.path.basename(__file__))[0],
+                                           ', v', __version__])
 
             # Write JSON as UTF-8
             with open(dest_path, mode='w', encoding='UTF-8') as file_handle:
                 json.dump(meta, file_handle, ensure_ascii=False)
+
+    return None
 
 
 def text_to_json(text_file: str, path_prefix: str='') -> dict:
@@ -107,8 +116,9 @@ def text_to_json(text_file: str, path_prefix: str='') -> dict:
     # Use the file name as the document title
     title = os.path.basename(text_file)
 
-    # After compressing whitespace, take all the content of the file for indexing
-    text = normalize_whitespace(content)
+    # After compressing whitespace, take all the content of the file for
+    # indexing
+    text = collapse_whitespace(content)
 
     meta = {'url': url, 'title': title, 'text': text}
 
@@ -118,7 +128,7 @@ def text_to_json(text_file: str, path_prefix: str='') -> dict:
     return meta
 
 
-def normalize_whitespace(text: str) -> str:
+def collapse_whitespace(text: str) -> str:
     """Collapse whitespace to single spaces, trim leading and trailing spaces.
 
     Args:
@@ -220,6 +230,8 @@ def standardize_product(abbrev: str) -> str:
 def standardize_booktitle(abbrev: str) -> str:
     """Convert book title abbreviations to fuller book titles.
 
+    Uses the global constant TITLES, which is set in jsonify().
+
     Args:
         abbrev  A common abbreviation for a book title.
 
@@ -229,155 +241,8 @@ def standardize_booktitle(abbrev: str) -> str:
     assert isinstance(abbrev, str), (
         'abbrev is not a string: %r' % abbrev)
 
-    booktitles = {
-        "About_Hortonworks_Data_Platform": 'Hortonworks Data Platform Getting Started',
-        "AdminGuide": 'Hortonworks DataFlow Administrator Guide',
-        "Amb_Rel_Notes": 'Hortonworks Data Platform Apache Ambari Release Notes',
-        "Ambari_Admin_Guide": 'Hortonworks Data Platform Apache Ambari Administrator Guide',
-        "Ambari_Admin_v170": 'Hortonworks Data Platform Apache Ambari Administrator Guide',
-        "Ambari_Doc_Suite": 'Hortonworks Data Platform Apache Ambari Documentation',
-        "Ambari_Install_v170": 'Hortonworks Data Platform Apache Ambari Installation Guide',
-        "Ambari_Ref_Guide_v170": 'Hortonworks Data Platform Apache Ambari Reference', # ?
-        "Ambari_Reference_Guide_v170": 'Hortonworks Data Platform Apache Ambari Reference', # ?
-        "ambari_reference_guide": 'Hortonworks Data Platform Apache Ambari Reference',
-        "ambari_reference": 'Hortonworks Data Platform Apache Ambari Reference',
-        "Ambari_RelNotes_v170": 'Hortonworks Data Platform Apache Ambari Release Notes',
-        "Ambari_RelNotes_v20": 'Hortonworks Data Platform Apache Ambari Release Notes',
-        "Ambari_Security_Guide": 'Hortonworks Data Platform Apache Ambari Security Guide',
-        "Ambari_Security_v170": 'Hortonworks Data Platform Apache Ambari Security Guide',
-        "ambari_security": 'Hortonworks Data Platform Apache Ambari Security Guide',
-        "Ambari_Trblshooting_v170": 'Hortonworks Data Platform Apache Ambari Troubleshooting Guide',
-        "ambari_troubleshooting": 'Hortonworks Data Platform Apache Ambari Troubleshooting Guide',
-        "Ambari_Upgrade_v170": 'Hortonworks Data Platform Apache Ambari Upgrade Guide',
-        "Ambari_User_v170": 'Hortonworks Data Platform Apache Ambari User Guide',
-        "Ambari_Users_Guide": 'Hortonworks Data Platform Apache Ambari User Guide',
-        "ambari_views_guide": 'Hortonworks Data Platform Apache Ambari Views Guide',
-        "Appendix": 'Hortonworks Data Platform Port Configuration Guide',
-        "atlas-rest-api": 'Hortonworks Data Platform Apache Atlas REST API Reference',
-        "beeline": 'Hortonworks Data Platform Apache Hive Beeline Java API Reference',
-        "cldbrk_install": 'Hortonworks Cloudbreak Installation Guide',
-        "Clust_Plan_Gd_Win":
-            'Hortonworks Data Platform Cluster Planning Guide for Microsoft Windows',
-        "cluster-planning-guide": 'Hortonworks Data Platform Cluster Planning Guide',
-        "ClusterPlanningGuide": 'Hortonworks Data Platform Cluster Planning Guide',
-        "data_governance": 'Hortonworks Data Platform Data Governance Guide',
-        "Data_Integration_Services_With_HDP":
-            'Hortonworks Data Platform Data Integration Services Guide',
-        "data_movement": 'Hortonworks Data Platform Data Movement Guide',
-        "dataintegration": 'Hortonworks Data Platform Data Integration Services Guide',
-        "Deploying_Hortonworks_Data_Platform": 'Hortonworks Data Platform Deployment Guide',
-        "DeveloperGuide": 'Hortonworks DataFlow Developer Guide',
-        "ExpressionLanguageGuide": 'Hortonworks DataFlow Expression Language Guide',
-        "falcon_quickstart_guide": 'Hortonworks Data Platform Apache Falcon Quick Start',
-        "falcon": 'Hortonworks Data Platform Apache Falcon Guide',
-        "Flume": 'Hortonworks Data Platform Apache Flume Guide',
-        "getting-started-guide": 'Hortonworks Data Platform Getting Started',
-        "getting-started-win": 'Hortonworks Data Platform Getting Started for Microsoft Windows',
-        "GettingStartedGuide": 'Hortonworks Data Platform Getting Started',
-        "gsInstaller": 'Hortonworks Data Platform Getting Started',
-        "hadoop-ha": 'Hortonworks Data Platform High Availability Guide',
-        "Hadoop": 'Hortonworks Data Platform Apache Hadoop Guide',
-        "HAGuides": 'Hortonworks Data Platform High Availability Guide',
-        "hbase_java_api": 'Hortonworks Data Platform Apache HBase Java API Reference',
-        "hbase_snapshots_guide": 'Hortonworks Data Platform Apache HBase Snapshots Guide',
-        "HCatalog": 'Hortonworks Data Platform Apache HCatalog Guide',
-        "HDF_GettingStarted": 'Hortonworks DataFlow Getting Started',
-        "HDF_InstallSetup": 'Hortonworks DataFlow Installation and Setup Guide',
-        "HDF_RelNotes": 'Hortonworks DataFlow Release Notes',
-        "HDF_Upgrade": 'Hortonworks DataFlow Upgrade Guide',
-        "hdfs_admin_tools": 'Hortonworks Data Platform Administration Tools Guide',
-        "hdfs_nfs_gateway": 'Hortonworks Data Platform HDFS NFS Gateway Guide',
-        "HDP_HA": 'Hortonworks Data Platform High Availability Guide',
-        "HDP_Install_Upgrade_Win":
-            'Hortonworks Data Platform Installation and Upgrade Guide for Microsoft Windows',
-        "HDP_Install_Win": 'Hortonworks Data Platform Installation Guide for Microsoft Windows',
-        "HDP_Reference_Guide": 'Hortonworks Data Platform Reference Guide',
-        "HDP_RelNotes_Win": 'Hortonworks Data Platform Release Notes for Microsoft Windows',
-        "HDP_RelNotes": 'Hortonworks Data Platform Release Notes',
-        "hdp_search": 'Hortonworks Data Platform Search Solutions Guide',
-        "HDP_Upgrade_Win": 'Hortonworks Data Platform Upgrade Guide for Microsoft Windows',
-        "hdp1-system-admin-guide": 'Hortonworks Data Platform Administrator Guide',
-        "HDPSecure_Admin": 'Hortonworks Data Platform Secure Administration Guide',
-        "High_Availability_Guides": 'Hortonworks Data Platform High Availability Guide',
-        "hive_javadocs": 'Hortonworks Data Platform Apache Hive Java API Reference',
-        "Hive": 'Hortonworks Data Platform Apache Hive Guide',
-        "HortonworksConnectorForTeradata": 'Hortonworks Data Platform Terradata Connection Guide',
-        "importing_data_into_hbase_guide":
-            'Hortonworks Data Platform Apache HBase Data Importing Guide',
-        "Installing_HDP_AMB": 'Hortonworks Data Platform Apache Ambari Installation Guide',
-        "installing_hdp_for_windows":
-            'Hortonworks Data Platform Installation Guide for Microsoft Windows',
-        "installing_manually_book": 'Hortonworks Data Platform Manual Installation Guide',
-        "kafka-guide": 'Hortonworks Data Platform Apache Kafka Guide',
-        "kafka-user-guide": 'Hortonworks Data Platform Apache Kafka User Guide',
-        "Knox_Admin_Guide": 'Hortonworks Data Platform Apache Knox Gateway Administrator Guide',
-        "Knox_Gateway_Admin_Guide":
-            'Hortonworks Data Platform Apache Knox Gateway Administrator Guide',
-        "Monitoring_Hadoop_Book": 'Hortonworks Data Platform Apache Hadoop Monitoring Guide',
-        "Monitoring_HDP": 'Hortonworks Data Platform Apache Hadoop Monitoring Guide',
-        "Overview": 'Hortonworks DataFlow Overview',
-        "performance_tuning": 'Hortonworks Data Platform Performance Tuning Guide',
-        "Pig": 'Hortonworks Data Platform Apache Pig Guide',
-        "QuickStart_HDPWin": 'Hortonworks Data Platform Quick Start for Microsoft Windows',
-        "Ranger_Adding_New": 'Hortonworks Data Platform Apache Ranger Component Addition Guide',
-        "Ranger_Install_Guide": 'Hortonworks Data Platform Apache Ranger Installation Guide',
-        "Ranger_KMS_Admin_Guide":
-            'Hortonworks Data Platform Apache Ranger Key Management Administrator Guide',
-        "Ranger_User_Guide": 'Hortonworks Data Platform Apache Ranger User Guide',
-        "readme": 'Hortonworks Data Platform Readme',
-        "Reference": 'Hortonworks Data Platform Reference',
-        "reference": 'Hortonworks Data Platform Reference',
-        "releasenotes_ambari_1.5.0": 'Hortonworks Data Platform Apache Ambari Release Notes',
-        "releasenotes_ambari_1.5.1": 'Hortonworks Data Platform Apache Ambari Release Notes',
-        "releasenotes_ambari_1.6.0": 'Hortonworks Data Platform Apache Ambari Release Notes',
-        "releasenotes_ambari_1.6.1": 'Hortonworks Data Platform Apache Ambari Release Notes',
-        "releasenotes_ambari_2.0.0": 'Hortonworks Data Platform Apache Ambari Release Notes',
-        "releasenotes_ambari_2.0.1.0": 'Hortonworks Data Platform Apache Ambari Release Notes',
-        "releasenotes_ambari_2.0.2.0": 'Hortonworks Data Platform Apache Ambari Release Notes',
-        "releasenotes_ambari_2.1.0.0": 'Hortonworks Data Platform Apache Ambari Release Notes',
-        "releasenotes_ambari_2.1.1.0": 'Hortonworks Data Platform Apache Ambari Release Notes',
-        "releasenotes_ambari_2.1.2.0": 'Hortonworks Data Platform Apache Ambari Release Notes',
-        "releasenotes_ambari_2.1.2.1": 'Hortonworks Data Platform Apache Ambari Release Notes',
-        "releasenotes_ambari_2.2.0.0": 'Hortonworks Data Platform Apache Ambari Release Notes',
-        "releasenotes_ambari_2.2.1.0": 'Hortonworks Data Platform Apache Ambari Release Notes',
-        "releasenotes_ambari_2.2.1.1": 'Hortonworks Data Platform Apache Ambari Release Notes',
-        "releasenotes_ambari_2.2.2.0": 'Hortonworks Data Platform Apache Ambari Release Notes',
-        "releasenotes_ambari": 'Hortonworks Data Platform Apache Ambari Release Notes',
-        "releasenotes_hdp_1.x": 'Hortonworks Data Platform Release Notes',
-        "releasenotes_hdp_2.0": 'Hortonworks Data Platform Release Notes',
-        "releasenotes_hdp_2.1": 'Hortonworks Data Platform Release Notes',
-        "releasenotes_HDP-Win": 'Hortonworks Data Platform Release Notes for Microsoft Windows',
-        "rolling-upgrade": 'Hortonworks Data Platform Rolling Upgrade Guide',
-        "secure-kafka-ambari":
-            'Hortonworks Data Platform Apache Ambari Configuring Apache Kafka Guide',
-        "secure-storm-ambari":
-            'Hortonworks Data Platform Apache Ambari Configuring Apache Storm Guide',
-        "Security_Guide": 'Hortonworks Data Platform Security Guide',
-        "smartsense_admin": 'Hortonworks SmartSense Administrator Guide',
-        "spark-guide": 'Hortonworks Data Platform Apache Spark Guide',
-        "spark-quickstart": 'Hortonworks Data Platform Apache Spark Quick Start',
-        "Sqoop": 'Hortonworks Data Platform Apache Sqoop Guide',
-        "storm-user-guide": 'Hortonworks Data Platform Apache Spark User Guide',
-        "Sys_Admin_Guides": 'Hortonworks Data Platform Administrator Guide',
-        "sysadmin-guide": 'Hortonworks Data Platform Administrator Guide',
-        "system-admin-guide": 'Hortonworks Data Platform Administrator Guide',
-        "Templeton": 'Hortonworks Data Platform Apache Templeton Guide',
-        "upgrading_Ambari": 'Hortonworks Data Platform Apache Ambari Upgrade Guide',
-        "upgrading_hdp_manually": 'Hortonworks Data Platform Manual Upgrade Guide',
-        "user-guide": 'Hortonworks Data Platform User Guide',
-        "UserGuide": 'Hortonworks DataFlow User Guide',
-        "using_Ambari_book": 'Hortonworks Data Platform Apache Ambari User Guide',
-        "Using_Apache_FlumeNG": 'Hortonworks Data Platform Apache Flume NG User Guide',
-        "Using_WebHDFS_REST_API": 'Hortonworks Data Platform WebHDFS REST API Reference',
-        "using-apache-hadoop": 'Hortonworks Data Platform Apache Hadoop User Guide',
-        "webhdfs": 'Hortonworks Data Platform WebHDFS REST API Reference',
-        "whdata": 'Hortonworks Data Platform Documentation',
-        "whgdata": 'Hortonworks Data Platform Documentation',
-        "yarn_resource_mgt": 'Hortonworks Data Platform Apache YARN Resource Management Guide',
-    }
-
-    if abbrev in booktitles:
-        abbrev = booktitles[abbrev]
+    if abbrev in TITLES:
+        abbrev = TITLES[abbrev]
 
     return abbrev
 
@@ -572,7 +437,8 @@ def parse_path(path: str) -> dict:
 
     # Paths like HDPDocuments/SS1/SmartSense-1.2.2/bk_smartsense_admin/
     regex['std_path'] = re.compile(r"""
-        HDPDocuments/[^/]+/ (?P<p>\w+) - (?P<r>[.\w]+) /(?:ds_|bk_)? (?P<b>[^/]+) /
+        HDPDocuments/[^/]+/ (?P<p>\w+) - (?P<r>[.\w]+) /
+        (?:ds_|bk_)? (?P<b>[^/]+) /
         """, flags=re.X)
 
     # Paths like HDPDocuments/HDP2/HDP-2.3-yj/bk_hadoop-ha/
@@ -597,7 +463,8 @@ def parse_path(path: str) -> dict:
 
     # Paths like HDPDocuments/Ambari/Ambari-2.2.2.0/index.html
     regex['std_path_index'] = re.compile(r"""
-        HDPDocuments/[^/]+/ (?P<p>\w+) - (?P<r>[.\w]+) /[^/]+(?:[.]html?|[.]txt)\Z
+        HDPDocuments/[^/]+/ (?P<p>\w+) - (?P<r>[.\w]+) /
+        [^/]+(?:[.]html?|[.]txt)\Z
         """, flags=re.X)
 
     # Paths like HDPDocuments/HDP2/HDP-2.1.15-Win/index.html
@@ -740,7 +607,7 @@ def get_html_metas(etree: 'lxml.html.parse', meta: dict) -> dict:
         attribs = html_meta.attrib
         if 'name' in attribs and 'content' in attribs:
             meta[attribs.get('name').lower().strip()] = (
-                normalize_whitespace(attribs.get('content')))
+                collapse_whitespace(attribs.get('content')))
 
     return meta
 
@@ -770,7 +637,7 @@ def get_html_lang(etree: 'lxml.html.parse', meta: dict) -> dict:
         lang_list.append(lang)
     meta['lang'] = ' '.join(lang_list)
     meta['lang'] = meta['lang'].replace('_', '-')
-    meta['lang'] = normalize_whitespace(meta['lang'])
+    meta['lang'] = collapse_whitespace(meta['lang'])
     if not meta['lang']:
         meta['lang'] = 'en'
 
@@ -791,7 +658,7 @@ def _process_title(title: str, section_numbering_characters: str) -> str:
     assert isinstance(title, str), (
         'title is not a string: %r' % title)
 
-    title = normalize_whitespace(title)
+    title = collapse_whitespace(title)
     title = trim_prefix(title, 'Chapter')
     title = title.lstrip(section_numbering_characters)
 
@@ -821,13 +688,15 @@ def get_html_title(etree: 'lxml.html.parse', meta: dict,
     h1s = etree.xpath("//h1")
     if h1s:
         meta['title'] = get_text(h1s[0])
-        meta['title'] = _process_title(meta['title'], section_numbering_characters)
+        meta['title'] = _process_title(meta['title'],
+                                       section_numbering_characters)
 
     if 'title' not in meta:
         titles = etree.xpath("//title")
         if titles:
             meta['title'] = get_text(titles[0])
-            meta['title'] = _process_title(meta['title'], section_numbering_characters)
+            meta['title'] = _process_title(meta['title'],
+                                           section_numbering_characters)
 
     return meta
 
@@ -866,7 +735,7 @@ def get_html_priority_text(etree: 'lxml.html.parse', meta: dict,
     if 'keywords' in meta:
         priority_text_list.append(meta['keywords'])
     priority_text = ' '.join(priority_text_list)
-    priority_text = normalize_whitespace(priority_text)
+    priority_text = collapse_whitespace(priority_text)
     meta['ptext'] = priority_text
 
     return meta
@@ -894,7 +763,7 @@ def get_html_text(etree: 'lxml.html.parse', meta: dict) -> dict:
         meta['text'] = get_text(content[0])
     else:
         meta['text'] = get_text(etree.getroot())
-    meta['text'] = normalize_whitespace(meta['text'])
+    meta['text'] = collapse_whitespace(meta['text'])
     meta['text'] = trim_suffix(meta['text'], ' Legal notices')
 
     return meta
@@ -962,11 +831,16 @@ if __name__ == '__main__':
     ARGPARSER.add_argument('-l', '--logfile', default=LOGFILE,
                            help='the log file, defaults to ./' + LOGFILE)
     ARGPARSER.add_argument('-v', '--verbosity', type=int, default=2,
-                           help='message level for log', choices=[1, 2, 3, 4, 5])
+                           help='message level for log',
+                           choices=[1, 2, 3, 4, 5])
+    ARGPARSER.add_argument('-t', '--titles',
+                           help='path to YAML file associating directory'
+                           ' names with titles.')
     ARGPARSER.add_argument('in_dir',
                            help='directory containing text and HTML files')
     ARGPARSER.add_argument('out_dir',
-                           help='nonexisting directory where JSON files will be written')
+                           help='nonexisting directory where JSON files'
+                           ' will be written')
     ARGS = ARGPARSER.parse_args()
 
     # In JSON, include the URL only from the web root. We can add the
@@ -985,4 +859,13 @@ if __name__ == '__main__':
         filename=ARGS.logfile)
     logging.getLogger().setLevel(ARGS.verbosity)
 
-    mirror_dirs(ARGS.in_dir, ARGS.out_dir)
+    TITLES = {}
+    if ARGS.titles:
+        try:
+            with open(ARGS.titles, encoding='UTF-8') as titles_fh:
+                TITLES = yaml.load(titles_fh, Loader=Loader)
+        except yaml.YAMLError:
+            logging.critical("Can't decode YAML from " + ARGS.titles)
+            sys.exit()
+
+    jsonify(ARGS.in_dir, ARGS.out_dir)
