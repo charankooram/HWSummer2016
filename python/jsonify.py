@@ -13,7 +13,6 @@ Use tar.bz2 to compress the resulting JSON:
 """
 
 import argparse
-import codecs
 import json
 import logging
 import os
@@ -22,7 +21,7 @@ import time
 import urllib.parse
 import lxml.html
 
-__version__ = '0.0.6'
+__version__ = '0.0.7'
 
 
 def mirror_dirs(src_dir: str, dest_dir: str) -> None:
@@ -72,11 +71,12 @@ def mirror_dirs(src_dir: str, dest_dir: str) -> None:
             meta['stream_size'] = os.path.getsize(src_path)
             meta['date'] = get_datetime(src_path)
             meta['x_parsed_by'] = ('com.hortonworks.docs.' +
-                                     os.path.basename(__file__) +
-                                     ', v' + __version__)
+                                   os.path.splitext(
+                                       os.path.basename(__file__))[0] +
+                                   ', v' + __version__)
 
             # Write JSON as UTF-8
-            with codecs.open(dest_path, mode='w', encoding='UTF-8') as file_handle:
+            with open(dest_path, mode='w', encoding='UTF-8') as file_handle:
                 json.dump(meta, file_handle, ensure_ascii=False)
 
 
@@ -91,12 +91,12 @@ def text_to_json(text_file: str, path_prefix: str='') -> dict:
         A dict of metadata gathered from the file path.
     """
     assert isinstance(text_file, str), (
-        'html_path is not a string: %r' % text_file)
+        'text_path is not a string: %r' % text_file)
     assert isinstance(path_prefix, str), (
         'path_prefix is not a string: %r' % path_prefix)
 
     # Read text files as cp1252, ignoring errors
-    with codecs.open(text_file, mode='r', encoding='cp1252', errors='ignore') as file_h:
+    with open(text_file, encoding='cp1252', errors='ignore') as file_h:
         content = file_h.read()
 
     # Convert file system path to URL syntax
@@ -139,7 +139,7 @@ def trim_prefix(original: str, prefix: str) -> str:
 
     Args:
         original  The original string.
-        prefix  The string to remove from the original string.
+        prefix  The phrase to remove from the original string.
 
     Returns:
         String with prefix removed, or the original string.
@@ -159,7 +159,7 @@ def trim_suffix(original: str, suffix: str) -> str:
 
     Args:
         original  The original string.
-        suffix  The string to remove from the original string.
+        suffix  The phrase to remove from the original string.
 
     Returns:
         String with suffix removed, or the original string.
@@ -217,17 +217,17 @@ def standardize_product(abbrev: str) -> str:
     return abbrev
 
 
-def standardize_booktitle(abbr: str) -> str:
+def standardize_booktitle(abbrev: str) -> str:
     """Convert book title abbreviations to fuller book titles.
 
     Args:
-        abbr  A common abbreviation for a book title.
+        abbrev  A common abbreviation for a book title.
 
     Returns:
         The best full title for display.
     """
-    assert isinstance(abbr, str), (
-        'abbr is not a string: %r' % abbr)
+    assert isinstance(abbrev, str), (
+        'abbrev is not a string: %r' % abbrev)
 
     booktitles = {
         "About_Hortonworks_Data_Platform": 'Hortonworks Data Platform Getting Started',
@@ -256,11 +256,13 @@ def standardize_booktitle(abbr: str) -> str:
         "atlas-rest-api": 'Hortonworks Data Platform Apache Atlas REST API Reference',
         "beeline": 'Hortonworks Data Platform Apache Hive Beeline Java API Reference',
         "cldbrk_install": 'Hortonworks Cloudbreak Installation Guide',
-        "Clust_Plan_Gd_Win": 'Hortonworks Data Platform Cluster Planning Guide for Microsoft Windows',
+        "Clust_Plan_Gd_Win":
+            'Hortonworks Data Platform Cluster Planning Guide for Microsoft Windows',
         "cluster-planning-guide": 'Hortonworks Data Platform Cluster Planning Guide',
         "ClusterPlanningGuide": 'Hortonworks Data Platform Cluster Planning Guide',
         "data_governance": 'Hortonworks Data Platform Data Governance Guide',
-        "Data_Integration_Services_With_HDP": 'Hortonworks Data Platform Data Integration Services Guide',
+        "Data_Integration_Services_With_HDP":
+            'Hortonworks Data Platform Data Integration Services Guide',
         "data_movement": 'Hortonworks Data Platform Data Movement Guide',
         "dataintegration": 'Hortonworks Data Platform Data Integration Services Guide',
         "Deploying_Hortonworks_Data_Platform": 'Hortonworks Data Platform Deployment Guide',
@@ -286,7 +288,8 @@ def standardize_booktitle(abbr: str) -> str:
         "hdfs_admin_tools": 'Hortonworks Data Platform Administration Tools Guide',
         "hdfs_nfs_gateway": 'Hortonworks Data Platform HDFS NFS Gateway Guide',
         "HDP_HA": 'Hortonworks Data Platform High Availability Guide',
-        "HDP_Install_Upgrade_Win": 'Hortonworks Data Platform Installation and Upgrade Guide for Microsoft Windows',
+        "HDP_Install_Upgrade_Win":
+            'Hortonworks Data Platform Installation and Upgrade Guide for Microsoft Windows',
         "HDP_Install_Win": 'Hortonworks Data Platform Installation Guide for Microsoft Windows',
         "HDP_Reference_Guide": 'Hortonworks Data Platform Reference Guide',
         "HDP_RelNotes_Win": 'Hortonworks Data Platform Release Notes for Microsoft Windows',
@@ -299,14 +302,17 @@ def standardize_booktitle(abbr: str) -> str:
         "hive_javadocs": 'Hortonworks Data Platform Apache Hive Java API Reference',
         "Hive": 'Hortonworks Data Platform Apache Hive Guide',
         "HortonworksConnectorForTeradata": 'Hortonworks Data Platform Terradata Connection Guide',
-        "importing_data_into_hbase_guide": 'Hortonworks Data Platform Apache HBase Data Importing Guide',
+        "importing_data_into_hbase_guide":
+            'Hortonworks Data Platform Apache HBase Data Importing Guide',
         "Installing_HDP_AMB": 'Hortonworks Data Platform Apache Ambari Installation Guide',
-        "installing_hdp_for_windows": 'Hortonworks Data Platform Installation Guide for Microsoft Windows',
+        "installing_hdp_for_windows":
+            'Hortonworks Data Platform Installation Guide for Microsoft Windows',
         "installing_manually_book": 'Hortonworks Data Platform Manual Installation Guide',
         "kafka-guide": 'Hortonworks Data Platform Apache Kafka Guide',
         "kafka-user-guide": 'Hortonworks Data Platform Apache Kafka User Guide',
         "Knox_Admin_Guide": 'Hortonworks Data Platform Apache Knox Gateway Administrator Guide',
-        "Knox_Gateway_Admin_Guide": 'Hortonworks Data Platform Apache Knox Gateway Administrator Guide',
+        "Knox_Gateway_Admin_Guide":
+            'Hortonworks Data Platform Apache Knox Gateway Administrator Guide',
         "Monitoring_Hadoop_Book": 'Hortonworks Data Platform Apache Hadoop Monitoring Guide',
         "Monitoring_HDP": 'Hortonworks Data Platform Apache Hadoop Monitoring Guide',
         "Overview": 'Hortonworks DataFlow Overview',
@@ -315,7 +321,8 @@ def standardize_booktitle(abbr: str) -> str:
         "QuickStart_HDPWin": 'Hortonworks Data Platform Quick Start for Microsoft Windows',
         "Ranger_Adding_New": 'Hortonworks Data Platform Apache Ranger Component Addition Guide',
         "Ranger_Install_Guide": 'Hortonworks Data Platform Apache Ranger Installation Guide',
-        "Ranger_KMS_Admin_Guide": 'Hortonworks Data Platform Apache Ranger Key Management Administrator Guide',
+        "Ranger_KMS_Admin_Guide":
+            'Hortonworks Data Platform Apache Ranger Key Management Administrator Guide',
         "Ranger_User_Guide": 'Hortonworks Data Platform Apache Ranger User Guide',
         "readme": 'Hortonworks Data Platform Readme',
         "Reference": 'Hortonworks Data Platform Reference',
@@ -341,8 +348,10 @@ def standardize_booktitle(abbr: str) -> str:
         "releasenotes_hdp_2.1": 'Hortonworks Data Platform Release Notes',
         "releasenotes_HDP-Win": 'Hortonworks Data Platform Release Notes for Microsoft Windows',
         "rolling-upgrade": 'Hortonworks Data Platform Rolling Upgrade Guide',
-        "secure-kafka-ambari": 'Hortonworks Data Platform Apache Ambari Configuring Apache Kafka Guide',
-        "secure-storm-ambari": 'Hortonworks Data Platform Apache Ambari Configuring Apache Storm Guide',
+        "secure-kafka-ambari":
+            'Hortonworks Data Platform Apache Ambari Configuring Apache Kafka Guide',
+        "secure-storm-ambari":
+            'Hortonworks Data Platform Apache Ambari Configuring Apache Storm Guide',
         "Security_Guide": 'Hortonworks Data Platform Security Guide',
         "smartsense_admin": 'Hortonworks SmartSense Administrator Guide',
         "spark-guide": 'Hortonworks Data Platform Apache Spark Guide',
@@ -367,10 +376,10 @@ def standardize_booktitle(abbr: str) -> str:
         "yarn_resource_mgt": 'Hortonworks Data Platform Apache YARN Resource Management Guide',
     }
 
-    if abbr in booktitles:
-        abbr = booktitles[abbr]
+    if abbrev in booktitles:
+        abbrev = booktitles[abbrev]
 
-    return abbr
+    return abbrev
 
 
 def _std_path(match: 're.match') -> dict:
@@ -896,8 +905,7 @@ def html_to_json(html_path: str, path_prefix: str='') -> dict:
 
     Args:
         html_path  Path to a directory containing HTML and text files.
-        path_prefix  String of text to be removed from the beginning of
-            URLs.
+        path_prefix  Text to be removed from the beginning of URLs.
 
     Returns:
         A dict of metadata suitable for conversion to a JSON file.
