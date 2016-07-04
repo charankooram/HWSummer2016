@@ -937,6 +937,7 @@ def html_to_json(html_path: str, path_prefix: str='') -> dict:
     # Convert file system path to URL syntax
     meta['url'] = trim_prefix(html_path, path_prefix)
     meta['url'] = urllib.parse.quote(meta['url'])
+    meta['id'] = meta['url']
 
     # Update dict with metadata from the file path
     meta.update(parse_path(html_path))
